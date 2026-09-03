@@ -1,0 +1,3 @@
+Customer_ID,Customer_Name,Contact_Number,Customer_Type,Total_Credit_Sales,Total_Payments_Received,Outstanding_Amount,Last_Payment_Date,Days_Overdue,Payment_Status
+CUST001,Alpha Build,9876543201,Contractor,₹ 100000,₹ 93800,₹ 6200,2026-08-20,12,Overdue
+CUST002,Beta Builders,9876543202,Contractor,₹ 200000,₹ 148000,₹ 52000,2026-08-25,0,Pending

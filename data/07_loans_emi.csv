@@ -1,0 +1,2 @@
+Loan_ID,Business_ID,Loan_Provider,Principal_Amount,Interest_Rate,Tenure_Months,Monthly_EMI,Outstanding_Principal,Start_Date,Next_Due_Date,Loan_Type,Status
+LN001,BUS001,SBI Bank,₹ 1500000,9.5%,60,₹ 31500,₹ 1100000,2024-01-01,2026-09-05,Term Loan,Active

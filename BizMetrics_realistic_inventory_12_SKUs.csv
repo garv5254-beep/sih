@@ -1,0 +1,13 @@
+Product_ID,Product_Name,Category,Sector,Unit,Purchase_Price,Selling_Price,Current_Stock,Minimum_Stock,Maximum_Stock,Reorder_Level,Status,Description
+PROD001,Steel Pipes - 1 inch,Building Materials,Hardware,Piece,₹ 145,₹ 220,125,30,200,50,Healthy,Galvanized steel pipes used for plumbing and construction work.
+PROD002,PVC Pipe - 1 inch,Plumbing,Hardware,Piece,₹ 85,₹ 135,180,40,300,70,Healthy,"Lightweight PVC pipes for water supply, drainage and small construction jobs."
+PROD003,Electrical Wire - 2.5 sq mm,Electrical,Hardware,Meter,₹ 8,₹ 15,450,100,800,200,Healthy,Copper electrical wire commonly used for household and commercial wiring.
+PROD004,LED Bulb - 9W,Electrical,Hardware,Piece,₹ 55,₹ 90,210,50,350,80,Healthy,Energy-efficient LED bulb with steady demand from local households and shops.
+PROD005,Cement - 50 kg,Construction,Hardware,Bag,₹ 350,₹ 425,65,20,120,30,Healthy,"Standard cement for masonry, repair and small concrete construction work."
+PROD006,Wall Paint - 20 L,Paint & Hardware,Hardware,Bucket,₹ 1850,₹ 2450,7,8,25,12,Low Stock,Interior and exterior wall paint; keep inventory lean because demand is seasonal.
+PROD007,GI Roofing Sheet,Roofing,Hardware,Piece,₹ 620,₹ 850,42,10,80,18,Healthy,"Galvanized roofing sheets for sheds, shops and rural structures."
+PROD008,PVC Elbow - 1 inch,Plumbing,Hardware,Piece,₹ 12,₹ 22,320,80,500,120,Healthy,90-degree PVC connector used to change pipeline direction.
+PROD009,Electrical Switch - 6A,Electrical,Hardware,Piece,₹ 28,₹ 50,145,30,250,60,Healthy,Standard 6A switch for residential and small commercial electrical work.
+PROD010,TMT Steel Bar - 8 mm,Building Materials,Hardware,Piece,₹ 410,₹ 520,18,10,45,20,Low Stock,Reinforcement steel used in concrete construction; reorder before stock reaches minimum.
+PROD011,Brass Tap - 15 mm,Plumbing,Hardware,Piece,₹ 180,₹ 295,25,10,60,15,Healthy,Durable brass water tap for household and small commercial plumbing.
+PROD012,Tile Adhesive - 20 kg,Construction,Hardware,Bag,₹ 285,₹ 390,18,15,50,25,Healthy,Cement-based adhesive for ceramic and floor tile installation.

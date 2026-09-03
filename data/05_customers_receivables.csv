@@ -1,0 +1,6 @@
+Customer_ID,Customer_Name,Contact_Number,Customer_Type,Total_Credit_Sales,Total_Payments_Received,Outstanding_Amount,Last_Payment_Date,Days_Overdue
+CUST005,Demo Customer 1,9876543200,Regular,₹ 42279,₹ 40004,₹ 2275,2026-08-25,8
+CUST001,Demo Customer 2,9876543201,Regular,₹ 137314,₹ 45059,₹ 92255,2026-08-25,2
+CUST003,Demo Customer 3,9876543202,Regular,₹ 506211,₹ 488226,₹ 17985,2026-08-25,4
+CUST002,Demo Customer 4,9876543203,Regular,₹ 157022,₹ 26381,₹ 130641,2026-08-25,8
+CUST004,Demo Customer 5,9876543204,Regular,₹ 233532,₹ 233532,₹ 0,2026-08-25,0

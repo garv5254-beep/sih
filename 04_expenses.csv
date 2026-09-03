@@ -1,0 +1,8 @@
+Expense_ID,Business_ID,Date,Category,Description,Amount,Payment_Status,Is_Fixed,Notes
+EXP001,BUS001,2026-08-14,Rent,Rent Expense,₹ 8000,Paid,Yes,Standard monthly
+EXP002,BUS001,2026-08-01,Salary,Salary Expense,₹ 12000,Paid,Yes,Standard monthly
+EXP003,BUS001,2026-08-20,Electricity,Electricity Expense,₹ 3000,Paid,No,Standard monthly
+EXP004,BUS001,2026-08-07,Transport,Transport Expense,₹ 8000,Paid,No,Standard monthly
+EXP005,BUS001,2026-08-02,Maintenance,Maintenance Expense,₹ 5000,Paid,No,Standard monthly
+EXP006,BUS001,2026-08-18,Marketing,Marketing Expense,₹ 0,Paid,No,Standard monthly
+EXP007,BUS001,2026-08-11,Miscellaneous,Miscellaneous Expense,₹ 4000,Paid,No,Standard monthly

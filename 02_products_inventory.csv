@@ -1,0 +1,13 @@
+Product_ID,Product_Name,Category,Sector,Unit,Purchase_Price,Selling_Price,Current_Stock,Minimum_Stock,Maximum_Stock,Reorder_Level,Status,Description,Supplier_ID,Lead_Time_Days
+PROD001,Steel Pipes - 1 inch,Building Materials,Hardware,Piece,₹ 145,₹ 162,125,30,200,50,Healthy,Galvanized steel pipes used for plumbing and construction work.,SUPP002,5
+PROD002,PVC Pipe - 1 inch,Plumbing,Hardware,Piece,₹ 85,₹ 95,180,40,300,70,Healthy,"Lightweight PVC pipes for water supply, drainage and small construction jobs.",SUPP003,8
+PROD003,Electrical Wire - 2.5 sq mm,Electrical,Hardware,Meter,₹ 8,₹ 9,450,100,800,200,Healthy,Copper electrical wire commonly used for household and commercial wiring.,SUPP002,6
+PROD004,LED Bulb - 9W,Electrical,Hardware,Piece,₹ 55,₹ 61,210,50,350,80,Healthy,Energy-efficient LED bulb with steady demand from local households and shops.,SUPP003,3
+PROD005,Cement - 50 kg,Construction,Hardware,Bag,₹ 350,₹ 377,65,20,120,30,Healthy,"Standard cement for masonry, repair and small concrete construction work.",SUPP003,4
+PROD006,Wall Paint - 20 L,Paint & Hardware,Hardware,Bucket,₹ 1850,₹ 2106,7,8,25,12,Low Stock,Interior and exterior wall paint; keep inventory lean because demand is seasonal.,SUPP003,4
+PROD007,GI Roofing Sheet,Roofing,Hardware,Piece,₹ 620,₹ 678,42,10,80,18,Healthy,"Galvanized roofing sheets for sheds, shops and rural structures.",SUPP003,10
+PROD008,PVC Elbow - 1 inch,Plumbing,Hardware,Piece,₹ 12,₹ 13,320,80,500,120,Healthy,90-degree PVC connector used to change pipeline direction.,SUPP002,7
+PROD009,Electrical Switch - 6A,Electrical,Hardware,Piece,₹ 28,₹ 31,145,30,250,60,Healthy,Standard 6A switch for residential and small commercial electrical work.,SUPP002,3
+PROD010,TMT Steel Bar - 8 mm,Building Materials,Hardware,Piece,₹ 410,₹ 440,18,10,45,20,Low Stock,Reinforcement steel used in concrete construction; reorder before stock reaches minimum.,SUPP003,5
+PROD011,Brass Tap - 15 mm,Plumbing,Hardware,Piece,₹ 180,₹ 199,25,10,60,15,Healthy,Durable brass water tap for household and small commercial plumbing.,SUPP002,3
+PROD012,Tile Adhesive - 20 kg,Construction,Hardware,Bag,₹ 285,₹ 316,18,15,50,25,Healthy,Cement-based adhesive for ceramic and floor tile installation.,SUPP001,10

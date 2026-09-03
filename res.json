@@ -1,0 +1,66 @@
+{
+  "business": {
+    "Shop_Name": "Shanichari Bazar",
+    "Owner_Name": "Chhattisgarh",
+    "Sector": "\u20b98",
+    "Business_Size": 0.0,
+    "Status": "Active"
+  },
+  "financial": {
+    "total_revenue": 76268.0,
+    "total_expenses": 78700.0,
+    "net_profit": -2432.0,
+    "profit_margin": -3.1887554413384382,
+    "cash_flow": -2432.0
+  },
+  "receivables": {
+    "total_outstanding": 42631.0,
+    "overdue": 19110.0,
+    "days_sales_outstanding": 0
+  },
+  "payables": {
+    "total_payables": 22760.0,
+    "overdue_payables": 0
+  },
+  "inventory": {
+    "total_items": 12,
+    "low_stock_items": 0,
+    "dead_stock_value": 0.0
+  },
+  "forecast": {
+    "next_month_projected_sales": 83894.8,
+    "upcoming_festivals": [
+      "Diwali",
+      "Dussehra"
+    ],
+    "recommended_stock_increase": "15%"
+  },
+  "risks": [
+    {
+      "risk": "Low Margin",
+      "severity": "MEDIUM",
+      "action": "Review pricing strategy"
+    },
+    {
+      "risk": "High Overdue Receivables",
+      "severity": "HIGH",
+      "action": "Follow up on payments immediately"
+    }
+  ],
+  "schemes": [
+    {
+      "scheme_name": "MUDRA Yojana",
+      "eligible": true,
+      "missing_docs": [
+        "Updated GST Return",
+        "Business Pan Card"
+      ]
+    },
+    {
+      "scheme_name": "PMEGP",
+      "eligible": false,
+      "reason": "Manufacturing sector only"
+    }
+  ],
+  "advice": "Based on the analysis, Shanichari Bazar has a revenue of Rs. 76,268 and a profit margin of -3.19%. However, there are Rs. 19,110 in overdue receivables requiring immediate attention. With Diwali approaching, it is recommended to increase inventory for high-demand items by 15%. "
+}
