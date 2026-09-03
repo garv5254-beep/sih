@@ -7,10 +7,10 @@ from pipeline import calculate_financials
 
 def test_financial_reconciliation():
     data = pd.DataFrame([
-        {"Record_Type": "Sale", "Quantity": 2, "Product_ID": "PROD1", "Discount_Percent": 0},
-        {"Record_Type": "Inventory", "Product_ID": "PROD1", "Purchase_Price": 30000, "Selling_Price": 50000},
-        {"Record_Type": "Expense", "Amount": 20000, "Category": "Rent"},
-        {"Record_Type": "Loan", "Outstanding_Principal": 500000, "Interest_Rate": "12%"}
+        {"record_type": "Sale", "quantity": 2, "product_id": "PROD1", "discount_percent": 0},
+        {"record_type": "Inventory", "product_id": "PROD1", "purchase_price": 30000, "selling_price": 50000},
+        {"record_type": "Expense", "amount": 20000, "category": "Rent"},
+        {"record_type": "Loan", "outstanding_principal": 500000, "interest_rate": "12%"}
     ])
     res = calculate_financials(data)
     assert res['total_revenue'] == 100000
@@ -25,8 +25,8 @@ def test_financial_reconciliation():
 
 def test_zero_revenue():
     data = pd.DataFrame([
-        {"Record_Type": "Sale", "Quantity": 0, "Product_ID": "PROD1", "Discount_Percent": 0},
-        {"Record_Type": "Inventory", "Product_ID": "PROD1", "Purchase_Price": 30000, "Selling_Price": 50000}
+        {"record_type": "Sale", "quantity": 0, "product_id": "PROD1", "discount_percent": 0},
+        {"record_type": "Inventory", "product_id": "PROD1", "purchase_price": 30000, "selling_price": 50000}
     ])
     res = calculate_financials(data)
     assert res['total_revenue'] == 0
@@ -35,12 +35,12 @@ def test_zero_revenue():
 
 def test_loan_principal_exclusion():
     data = pd.DataFrame([
-        {"Record_Type": "Sale", "Quantity": 1, "Product_ID": "PROD1", "Discount_Percent": 0},
-        {"Record_Type": "Inventory", "Product_ID": "PROD1", "Purchase_Price": 0, "Selling_Price": 100000},
-        {"Record_Type": "Expense", "Amount": 10000, "Category": "Loan Repayment"},
-        {"Record_Type": "Expense", "Amount": 5000, "Category": "Principal"},
-        {"Record_Type": "Expense", "Amount": 2000, "Category": "Inventory purchase"},
-        {"Record_Type": "Loan", "Outstanding_Principal": 100000, "Interest_Rate": "12%"}
+        {"record_type": "Sale", "quantity": 1, "product_id": "PROD1", "discount_percent": 0},
+        {"record_type": "Inventory", "product_id": "PROD1", "purchase_price": 0, "selling_price": 100000},
+        {"record_type": "Expense", "amount": 10000, "category": "Loan Repayment"},
+        {"record_type": "Expense", "amount": 5000, "category": "Principal"},
+        {"record_type": "Expense", "amount": 2000, "category": "Inventory purchase"},
+        {"record_type": "Loan", "outstanding_principal": 100000, "interest_rate": "12%"}
     ])
     res = calculate_financials(data)
     assert res['total_revenue'] == 100000
@@ -53,13 +53,13 @@ def test_edge_cases():
 
     # Missing discount, missing price, duplicate transaction
     data = pd.DataFrame([
-        {"Record_Type": "Sale", "Quantity": 2, "Product_ID": "PROD1"},
-        {"Record_Type": "Sale", "Quantity": 2, "Product_ID": "PROD1"}, # Duplicate
-        {"Record_Type": "Inventory", "Product_ID": "PROD1", "Selling_Price": 100},
-        {"Record_Type": "Sale", "Quantity": 1, "Product_ID": "PROD2"}, # Missing price in inventory
-        {"Record_Type": "Inventory", "Product_ID": "PROD3", "Selling_Price": 100}, # Missing SKU in sales
+        {"record_type": "Sale", "quantity": 2, "product_id": "PROD1"},
+        {"record_type": "Sale", "quantity": 2, "product_id": "PROD1"}, # Duplicate
+        {"record_type": "Inventory", "product_id": "PROD1", "selling_price": 100},
+        {"record_type": "Sale", "quantity": 1, "product_id": "PROD2"}, # Missing price in inventory
+        {"record_type": "Inventory", "product_id": "PROD3", "selling_price": 100}, # Missing SKU in sales
         # Negative profit
-        {"Record_Type": "Expense", "Amount": 1000, "Category": "Misc"}
+        {"record_type": "Expense", "amount": 1000, "category": "Misc"}
     ])
     res = calculate_financials(data)
     # Revenue = 4 * 100 = 400

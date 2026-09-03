@@ -109,7 +109,7 @@ with col_charts2:
     if not top_custs.empty and top_custs['Total_Spent'].sum() > 0:
         # Use reversed order for horizontal bar chart so largest is at the top
         top_custs = top_custs.iloc[::-1]
-        fig2 = create_bar_chart(top_custs, 'Total_Spent', 'Business_Name', "", colors.get('primary', '#C65D47'), orientation='h')
+        fig2 = create_bar_chart(top_custs, 'Total_Spent', 'business_name', "", colors.get('primary', '#C65D47'), orientation='h')
         st.plotly_chart(fig2, width="stretch")
     else:
         st.info("No spending data available.")
@@ -123,29 +123,29 @@ f_col1, f_col2, f_col3 = st.columns(3)
 with f_col1:
     search_term = st.text_input("Search Customer/Business Name", "")
 with f_col2:
-    status_filter = st.selectbox("Status", ["All"] + sorted(list(df_cust['Status'].unique())))
+    status_filter = st.selectbox("status", ["All"] + sorted(list(df_cust['status'].unique())))
 with f_col3:
-    type_filter = st.selectbox("Type", ["All"] + sorted(list(df_cust['Customer_Type'].unique())))
+    type_filter = st.selectbox("Type", ["All"] + sorted(list(df_cust['customer_type'].unique())))
 
 filtered_df = df_cust.copy()
 if search_term:
     filtered_df = filtered_df[
-        filtered_df['Customer_Name'].str.contains(search_term, case=False, na=False) |
-        filtered_df['Business_Name'].str.contains(search_term, case=False, na=False)
+        filtered_df['customer_name'].str.contains(search_term, case=False, na=False) |
+        filtered_df['business_name'].str.contains(search_term, case=False, na=False)
     ]
 if status_filter != "All":
-    filtered_df = filtered_df[filtered_df['Status'] == status_filter]
+    filtered_df = filtered_df[filtered_df['status'] == status_filter]
 if type_filter != "All":
-    filtered_df = filtered_df[filtered_df['Customer_Type'] == type_filter]
+    filtered_df = filtered_df[filtered_df['customer_type'] == type_filter]
 
 # Display columns
-display_cols = ['Customer_ID', 'Business_Name', 'City', 'Status', 'Segment', 'Total_Orders', 'Total_Spent', 'AOV', 'Last_Purchase_Date', 'Customer_Rating']
+display_cols = ['customer_id', 'business_name', 'city', 'status', 'Segment', 'Total_Orders', 'Total_Spent', 'AOV', 'Last_Purchase_Date', 'customer_rating']
 formatted_df = filtered_df[display_cols].copy()
 
 # Formatting for table display
 formatted_df['Total_Spent'] = formatted_df['Total_Spent'].apply(lambda x: format_currency(x))
 formatted_df['AOV'] = formatted_df['AOV'].apply(lambda x: format_currency(x))
-formatted_df['Customer_Rating'] = formatted_df['Customer_Rating'].apply(lambda x: f"{x:.1f} ★" if x > 0 else "N/A")
+formatted_df['customer_rating'] = formatted_df['customer_rating'].apply(lambda x: f"{x:.1f} ★" if x > 0 else "N/A")
 
 # Streamlit-compatible styling for the table (light text on dark background)
 styled_df = formatted_df.style.set_properties(**{
@@ -160,26 +160,26 @@ st.markdown("<br><hr style='border: none; border-top: 1px solid #E5E7EB;'><br>",
 
 st.markdown("### Customer Profile Details")
 if not filtered_df.empty:
-    selected_customer_name = st.selectbox("Select a customer to view details:", filtered_df['Business_Name'].tolist())
+    selected_customer_name = st.selectbox("Select a customer to view details:", filtered_df['business_name'].tolist())
     
     if selected_customer_name:
-        prof = filtered_df[filtered_df['Business_Name'] == selected_customer_name].iloc[0]
+        prof = filtered_df[filtered_df['business_name'] == selected_customer_name].iloc[0]
         
-        st.subheader(prof['Business_Name'])
-        st.caption(f"{prof['City']} • {prof['Status']} • {prof['Customer_Type']}")
+        st.subheader(prof['business_name'])
+        st.caption(f"{prof['city']} • {prof['status']} • {prof['customer_type']}")
         
         st.markdown("<br>", unsafe_allow_html=True)
         st.markdown("#### Purchase History")
         
         if not raw_data.empty:
-            sales_raw = raw_data[raw_data['Record_Type'] == 'Sale']
-            cust_sales = sales_raw[sales_raw['Customer_ID'] == prof['Customer_ID']].copy()
+            sales_raw = raw_data[raw_data['record_type'] == 'Sale']
+            cust_sales = sales_raw[sales_raw['customer_id'] == prof['customer_id']].copy()
             
             if not cust_sales.empty:
-                hist_cols = ['Date', 'Product_ID', 'Quantity', 'Selling_Price', 'Discount_Percent', 'Total_Amount']
+                hist_cols = ['date', 'product_id', 'quantity', 'selling_price', 'discount_percent', 'total_amount']
                 available_cols = [col for col in hist_cols if col in cust_sales.columns]
                 # Streamlit-compatible styling for the table
-                styled_hist = cust_sales[available_cols].sort_values('Date', ascending=False).style.set_properties(**{
+                styled_hist = cust_sales[available_cols].sort_values('date', ascending=False).style.set_properties(**{
                     'background-color': '#1F2937',
                     'color': '#F9FAFB',
                     'border-color': '#374151'

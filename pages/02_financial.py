@@ -92,21 +92,21 @@ st.markdown("<br><hr style='border: none; border-top: 1px solid #E5E7EB;'><br>",
 
 @st.cache_data
 def get_sales_trend(data):
-    sales_df = data[data['Record_Type'].str.lower() == 'sale']
-    if 'Date' in sales_df.columns:
+    sales_df = data[data['record_type'].str.lower() == 'sale']
+    if 'date' in sales_df.columns:
         sales_df = sales_df.copy()
-        sales_df['Date'] = pd.to_datetime(sales_df['Date'], errors='coerce')
-        if 'Total_Amount' in sales_df.columns:
-            return sales_df.groupby('Date')['Total_Amount'].sum().reset_index(), 'Total_Amount'
-        elif 'Amount' in sales_df.columns:
-            return sales_df.groupby('Date')['Amount'].sum().reset_index(), 'Amount'
+        sales_df['date'] = pd.to_datetime(sales_df['date'], errors='coerce')
+        if 'total_amount' in sales_df.columns:
+            return sales_df.groupby('date')['total_amount'].sum().reset_index(), 'total_amount'
+        elif 'amount' in sales_df.columns:
+            return sales_df.groupby('date')['amount'].sum().reset_index(), 'amount'
     return None, None
 
 @st.cache_data
 def get_exp_breakdown(data):
-    exp_df = data[data['Record_Type'].str.lower() == 'expense']
-    if 'Category' in exp_df.columns and 'Amount' in exp_df.columns:
-        return exp_df.groupby('Category')['Amount'].sum().reset_index()
+    exp_df = data[data['record_type'].str.lower() == 'expense']
+    if 'category' in exp_df.columns and 'amount' in exp_df.columns:
+        return exp_df.groupby('category')['amount'].sum().reset_index()
     return None
 
 if not raw_data.empty:
@@ -116,8 +116,8 @@ if not raw_data.empty:
         st.markdown("### Revenue Trend")
         sales_trend, val_col = get_sales_trend(raw_data)
         if sales_trend is not None:
-            fig = create_line_chart(sales_trend, 'Date', val_col, "", colors.get('terracotta', '#C65D47'))
-            st.plotly_chart(fig, use_container_width=True)
+            fig = create_line_chart(sales_trend, 'date', val_col, "", colors.get('terracotta', '#C65D47'))
+            st.plotly_chart(fig, width="stretch")
         else:
             st.info("Time-series data for Revenue not available.")
             
@@ -125,8 +125,8 @@ if not raw_data.empty:
         st.markdown("### Expense Breakdown")
         exp_breakdown = get_exp_breakdown(raw_data)
         if exp_breakdown is not None:
-            fig = create_donut_chart(exp_breakdown, 'Category', 'Amount', "")
-            st.plotly_chart(fig, use_container_width=True)
+            fig = create_donut_chart(exp_breakdown, 'category', 'amount', "")
+            st.plotly_chart(fig, width="stretch")
         else:
             st.info("Category breakdown for Expenses not available.")
             

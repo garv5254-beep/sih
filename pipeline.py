@@ -29,15 +29,16 @@ def validate_and_clean(data):
         return data
         
     print("Validating and cleaning data...")
+    data.columns = data.columns.str.strip().str.lower()
     
     # Normalize SKU / Product_ID
-    if 'Product_ID' in data.columns:
-        data['Product_ID'] = data['Product_ID'].apply(normalize_sku)
+    if 'product_id' in data.columns:
+        data['product_id'] = data['product_id'].apply(normalize_sku)
     elif 'SKU' in data.columns:
         data['SKU'] = data['SKU'].apply(normalize_sku)
-        data['Product_ID'] = data['SKU'] # Standardize to Product_ID
+        data['product_id'] = data['SKU'] # Standardize to Product_ID
     
-    product_col = "Product_Name"
+    product_col = "product_name"
     if product_col in data.columns:
         data[product_col] = (
             data[product_col]
@@ -46,11 +47,11 @@ def validate_and_clean(data):
             .str.strip()
         )
         data["Display_Product"] = data.apply(
-            lambda row: row[product_col] if row[product_col] != "" else (row.get('Product_ID', 'Unnamed Product')),
+            lambda row: row[product_col] if row[product_col] != "" else (row.get('product_id', 'Unnamed Product')),
             axis=1
         )
     else:
-        data["Display_Product"] = data.get('Product_ID', 'Unnamed Product')
+        data["Display_Product"] = data.get('product_id', 'Unnamed Product')
         
     # Clean string amounts (e.g. ₹100,000 -> 100000, 51.7% -> 51.7)
     keywords = ['amount', 'price', 'cost', 'emi', 'principal', 'margin', 'rate', 'discount']
@@ -60,6 +61,58 @@ def validate_and_clean(data):
         # Regex replace is faster than chained string replaces
         cleaned = data[col].astype(str).str.replace(r'[₹,%]', '', regex=True).str.strip()
         data[col] = pd.to_numeric(cleaned, errors='coerce')
+        
+    # Clean date columns globally
+    date_cols = ['date', 'due_date', 'payment_date', 'registration_date', 'start_date', 'next_payment_date', 'next_due_date']
+    for d_col in date_cols:
+        if d_col in data.columns:
+            data[d_col] = pd.to_datetime(data[d_col], errors='coerce')
+            
+    # Dynamically calculate Receivables Outstanding and Status
+    is_rec = data['record_type'].astype(str).str.lower() == 'receivable'
+    if is_rec.any():
+        today = pd.Timestamp.today().normalize()
+        
+        # Calculate Outstanding
+        inv_amt = pd.to_numeric(data.loc[is_rec, 'total_amount'], errors='coerce').fillna(0)
+        paid_amt = pd.to_numeric(data.loc[is_rec, 'total_paid_amount'], errors='coerce').fillna(0)
+        
+        # Fix potential overpayments or negative amounts
+        inv_amt = inv_amt.clip(lower=0)
+        paid_amt = paid_amt.clip(lower=0, upper=inv_amt)
+        data.loc[is_rec, 'total_amount'] = inv_amt
+        data.loc[is_rec, 'total_paid_amount'] = paid_amt
+        
+        outstanding = inv_amt - paid_amt
+        data.loc[is_rec, 'outstanding_amount'] = outstanding
+        
+        # Calculate Status
+        due_dates = pd.to_datetime(data.loc[is_rec, 'due_date'], errors='coerce')
+        
+        statuses = []
+        days_overdues = []
+        
+        for out_val, due_dt in zip(outstanding, due_dates):
+            if out_val <= 0:
+                statuses.append("Paid")
+                days_overdues.append(0)
+            elif pd.isna(due_dt):
+                statuses.append("Pending")
+                days_overdues.append(0)
+            else:
+                days_diff = (today - due_dt).days
+                if days_diff > 0:
+                    statuses.append("Overdue")
+                    days_overdues.append(days_diff)
+                elif days_diff >= -7:
+                    statuses.append("Due Soon")
+                    days_overdues.append(0)
+                else:
+                    statuses.append("Pending")
+                    days_overdues.append(0)
+                    
+        data.loc[is_rec, 'status'] = statuses
+        data.loc[is_rec, 'Days_Overdue'] = days_overdues
     
     return data
 
@@ -67,7 +120,7 @@ def analyze_business(data):
     """
     3. Business Profile Engine
     """
-    biz_df = data[data['Record_Type'] == 'Business']
+    biz_df = data[data['record_type'] == 'Business']
     if biz_df.empty:
         return {"Shop_Name": "Unknown", "Owner_Name": "Unknown"}
     
@@ -76,36 +129,36 @@ def analyze_business(data):
     return {
         "Shop_Name": row.get("Shop_Name", "Unknown"),
         "Owner_Name": row.get("Owner_Name", "Unknown"),
-        "Sector": row.get("Sector", "Unknown"),
+        "sector": row.get("sector", "Unknown"),
         "Business_Size": row.get("Business_Size", "Unknown"),
-        "Status": "Active"
+        "status": "Active"
     }
 
 def calculate_financials(data):
     """
     4. Financial Engine
     """
-    if data.empty or 'Record_Type' not in data.columns:
+    if data.empty or 'record_type' not in data.columns:
         sales_df = pd.DataFrame()
         expenses_df = pd.DataFrame()
         inv_df = pd.DataFrame()
         loan_df = pd.DataFrame()
     else:
-        sales_df = data[data['Record_Type'] == 'Sale'].copy()
-        expenses_df = data[data['Record_Type'] == 'Expense'].copy()
-        inv_df = data[data['Record_Type'] == 'Inventory'].copy()
-        loan_df = data[data['Record_Type'] == 'Loan'].copy()
+        sales_df = data[data['record_type'] == 'Sale'].copy()
+        expenses_df = data[data['record_type'] == 'Expense'].copy()
+        inv_df = data[data['record_type'] == 'Inventory'].copy()
+        loan_df = data[data['record_type'] == 'Loan'].copy()
     
     # Pre-compute product costs and selling prices
     product_costs = {}
     product_selling_prices = {}
     for _, row in inv_df.iterrows():
-        pid = row.get('Product_ID') or row.get('SKU')
+        pid = row.get('product_id') or row.get('SKU')
         if pd.isna(pid): continue
         pid = normalize_sku(pid)
-        cost_str = str(row.get('Purchase_Price', '0')).replace('₹', '').replace(',', '').strip()
+        cost_str = str(row.get('purchase_price', '0')).replace('₹', '').replace(',', '').strip()
         product_costs[pid] = pd.to_numeric(cost_str, errors='coerce')
-        sell_str = str(row.get('Selling_Price', '0')).replace('₹', '').replace(',', '').strip()
+        sell_str = str(row.get('selling_price', '0')).replace('₹', '').replace(',', '').strip()
         product_selling_prices[pid] = pd.to_numeric(sell_str, errors='coerce')
         
     revenue = 0
@@ -113,16 +166,16 @@ def calculate_financials(data):
     
     # Calculate Revenue and exact COGS
     if not sales_df.empty:
-        sales_df['Quantity_Num'] = pd.to_numeric(sales_df['Quantity'], errors='coerce').fillna(0)
+        sales_df['Quantity_Num'] = pd.to_numeric(sales_df['quantity'], errors='coerce').fillna(0)
         
         # Calculate revenue strictly from Qty * Selling_Price * (1 - discount/100)
-        if 'Discount_Percent' in sales_df.columns:
-            sales_df['Discount_Num'] = pd.to_numeric(sales_df['Discount_Percent'], errors='coerce').fillna(0)
+        if 'discount_percent' in sales_df.columns:
+            sales_df['Discount_Num'] = pd.to_numeric(sales_df['discount_percent'], errors='coerce').fillna(0)
         else:
             sales_df['Discount_Num'] = 0
             
         # Vectorized revenue and COGS calculation
-        sales_df['Normalized_PID'] = sales_df.get('Product_ID', '').apply(normalize_sku)
+        sales_df['Normalized_PID'] = sales_df.get('product_id', '').apply(normalize_sku)
         
         sales_df['Sell_Price'] = sales_df['Normalized_PID'].map(product_selling_prices).fillna(0)
         sales_df['Cost_Price'] = sales_df['Normalized_PID'].map(product_costs).fillna(0)
@@ -135,13 +188,13 @@ def calculate_financials(data):
             
     # Operating Expenses (Rent, Wages, etc.)
     # Exclude loan principal/interest if mistakenly added as expense
-    if 'Amount' in expenses_df.columns:
+    if 'amount' in expenses_df.columns:
         categories_to_exclude = ['loan', 'interest', 'inventory', 'repayment', 'principal']
         valid_expenses = expenses_df[
-            ~expenses_df.get('Category', pd.Series(dtype=str)).astype(str).str.lower().str.contains('|'.join(categories_to_exclude), na=False)
+            ~expenses_df.get('category', pd.Series(dtype=str)).astype(str).str.lower().str.contains('|'.join(categories_to_exclude), na=False)
         ]
         expenses = pd.to_numeric(
-            valid_expenses['Amount'].astype(str).str.replace('₹', '').str.replace(',', '').str.strip(), errors='coerce'
+            valid_expenses['amount'].astype(str).str.replace('₹', '').str.replace(',', '').str.strip(), errors='coerce'
         ).sum()
     else:
         expenses = 0
@@ -152,10 +205,10 @@ def calculate_financials(data):
     # Interest Expense
     interest_expense = 0
     if not loan_df.empty:
-        if 'Outstanding_Principal' in loan_df.columns and 'Interest_Rate' in loan_df.columns:
+        if 'outstanding_principal' in loan_df.columns and 'interest_rate' in loan_df.columns:
             for _, row in loan_df.iterrows():
-                principal = pd.to_numeric(str(row['Outstanding_Principal']).replace('₹', '').replace(',', '').strip(), errors='coerce')
-                rate = pd.to_numeric(str(row['Interest_Rate']).replace('%', '').strip(), errors='coerce')
+                principal = pd.to_numeric(str(row['outstanding_principal']).replace('₹', '').replace(',', '').strip(), errors='coerce')
+                rate = pd.to_numeric(str(row['interest_rate']).replace('%', '').strip(), errors='coerce')
                 if pd.notna(principal) and pd.notna(rate):
                     # Monthly interest assumption for the demo
                     interest_expense += principal * (rate / 100.0) / 12.0
@@ -190,35 +243,56 @@ def analyze_receivables(data):
     """
     5. Customer Engine / Receivables
     """
-    rec_df = data[data['Record_Type'] == 'Receivable']
+    rec_df = data[data['record_type'].astype(str).str.lower() == 'receivable']
     
-    if 'Outstanding_Amount' in rec_df.columns:
-        outstanding = pd.to_numeric(rec_df['Outstanding_Amount'], errors='coerce')
-        total_outstanding = outstanding.sum()
+    if rec_df.empty:
+        return {
+            "total_outstanding": 0.0,
+            "total_invoiced": 0.0,
+            "total_paid": 0.0,
+            "collection_rate": 0.0,
+            "overdue": 0.0,
+            "due_soon": 0.0,
+            "pending": 0.0,
+            "days_sales_outstanding": 0
+        }
         
-        # Assume overdue if status is Attention or Overdue, or days overdue > 0
-        overdue = 0
-        if 'Payment_Status' in rec_df.columns:
-            overdue = outstanding[rec_df['Payment_Status'].isin(['Attention', 'Overdue'])].sum()
-        elif 'Days_Overdue' in rec_df.columns:
-            overdue = outstanding[pd.to_numeric(rec_df['Days_Overdue'], errors='coerce') > 0].sum()
-    else:
-        total_outstanding = 0
-        overdue = 0
+    total_invoiced = pd.to_numeric(rec_df['total_amount'], errors='coerce').sum()
+    total_paid = pd.to_numeric(rec_df['total_paid_amount'], errors='coerce').sum()
+    total_outstanding = pd.to_numeric(rec_df['outstanding_amount'], errors='coerce').sum()
+    
+    collection_rate = (total_paid / total_invoiced * 100) if total_invoiced > 0 else 0.0
+    
+    overdue = 0.0
+    due_soon = 0.0
+    pending = 0.0
+    
+    if 'status' in rec_df.columns:
+        status_col = rec_df['status'].astype(str).str.strip().str.lower()
+        outstanding_col = pd.to_numeric(rec_df['outstanding_amount'], errors='coerce').fillna(0)
+        
+        overdue = outstanding_col[status_col == 'overdue'].sum()
+        due_soon = outstanding_col[status_col == 'due soon'].sum()
+        pending = outstanding_col[status_col == 'pending'].sum()
         
     return {
-        "total_outstanding": total_outstanding,
-        "overdue": overdue,
-        "days_sales_outstanding": 0 # Needs total credit sales to calculate
+        "total_outstanding": float(total_outstanding),
+        "total_invoiced": float(total_invoiced),
+        "total_paid": float(total_paid),
+        "collection_rate": float(collection_rate),
+        "overdue": float(overdue),
+        "due_soon": float(due_soon),
+        "pending": float(pending),
+        "days_sales_outstanding": 0 # Not calculated
     }
 
 def analyze_payables(data):
     """
     6. Vendor Engine / Payables
     """
-    pay_df = data[data['Record_Type'] == 'Payable']
-    if 'Outstanding_Amount' in pay_df.columns:
-        total_payables = pd.to_numeric(pay_df['Outstanding_Amount'], errors='coerce').sum()
+    pay_df = data[data['record_type'] == 'Payable']
+    if 'outstanding_amount' in pay_df.columns:
+        total_payables = pd.to_numeric(pay_df['outstanding_amount'], errors='coerce').sum()
     else:
         total_payables = 0
         
@@ -231,23 +305,23 @@ def analyze_inventory(data):
     """
     7. Inventory Engine
     """
-    inv_df = data[data['Record_Type'] == 'Inventory']
+    inv_df = data[data['record_type'] == 'Inventory']
     
     total_items = len(inv_df)
     low_stock = 0
     dead_stock_val = 0
     
 def analyze_inventory(df):
-    inv = df[df['Record_Type'] == 'Inventory'].copy()
-    sales_df = df[df['Record_Type'] == 'Sale'].copy()
+    inv = df[df['record_type'] == 'Inventory'].copy()
+    sales_df = df[df['record_type'] == 'Sale'].copy()
     
     if inv.empty:
         return {"total_skus": 0, "low_stock_items": 0, "dead_stock_value": 0, "items": [], "ml_recommendations": []}
         
-    cur_stock = pd.to_numeric(inv['Current_Stock'], errors='coerce').fillna(0)
-    min_stock = pd.to_numeric(inv['Minimum_Stock'], errors='coerce').fillna(0)
-    max_stock = pd.to_numeric(inv['Maximum_Stock'], errors='coerce').fillna(100)
-    price = pd.to_numeric(inv['Purchase_Price'].astype(str).str.replace('₹', '').str.replace(',', ''), errors='coerce').fillna(0)
+    cur_stock = pd.to_numeric(inv['current_stock'], errors='coerce').fillna(0)
+    min_stock = pd.to_numeric(inv['minimum_stock'], errors='coerce').fillna(0)
+    max_stock = pd.to_numeric(inv['maximum_stock'], errors='coerce').fillna(100)
+    price = pd.to_numeric(inv['purchase_price'].astype(str).str.replace('₹', '').str.replace(',', ''), errors='coerce').fillna(0)
     
     total_val = (cur_stock * price).sum()
     low_stock = cur_stock <= min_stock
@@ -259,7 +333,7 @@ def analyze_inventory(df):
     try:
         # Pre-process sales df quantities
         if not sales_df.empty:
-            sales_df['Quantity'] = pd.to_numeric(sales_df['Quantity'], errors='coerce').fillna(0)
+            sales_df['quantity'] = pd.to_numeric(sales_df['quantity'], errors='coerce').fillna(0)
         
         ml_engine = InventoryML()
         predictions, diagnostics = ml_engine.predict_demand(sales_df, inv)
@@ -282,7 +356,7 @@ def analyze_inventory(df):
     # Enhance the original items payload
     items = inv.to_dict('records')
     for item in items:
-        item['stock_status'] = 'Low Stock' if pd.to_numeric(item.get('Current_Stock', 0), errors='coerce') <= pd.to_numeric(item.get('Minimum_Stock', 0), errors='coerce') else 'Healthy'
+        item['stock_status'] = 'Low Stock' if pd.to_numeric(item.get('current_stock', 0), errors='coerce') <= pd.to_numeric(item.get('minimum_stock', 0), errors='coerce') else 'Healthy'
     
     return {
         "total_skus": len(inv),
@@ -304,9 +378,9 @@ def forecast_demand(data):
     8. Forecasting Engine
     """
     # Simple heuristic forecasting based on historical sales
-    sales_df = data[data['Record_Type'] == 'Sale']
-    if 'Total_Amount' in sales_df.columns:
-        hist_revenue = pd.to_numeric(sales_df['Total_Amount'], errors='coerce').sum()
+    sales_df = data[data['record_type'] == 'Sale']
+    if 'total_amount' in sales_df.columns:
+        hist_revenue = pd.to_numeric(sales_df['total_amount'], errors='coerce').sum()
     else:
         hist_revenue = 0
         
@@ -384,7 +458,7 @@ def analyze_loans(data):
     """
     Loan Engine
     """
-    loan_df = data[data['Record_Type'] == 'Loan'].copy()
+    loan_df = data[data['record_type'] == 'Loan'].copy()
     
     total_principal = 0
     outstanding_principal = 0
@@ -397,10 +471,10 @@ def analyze_loans(data):
             def clean_amt(val):
                 return pd.to_numeric(str(val).replace('₹', '').replace(',', '').strip(), errors='coerce') if pd.notna(val) else 0
 
-            principal = clean_amt(row.get('Principal_Amount', 0))
-            outstanding = clean_amt(row.get('Outstanding_Principal', 0))
-            emi = clean_amt(row.get('Monthly_EMI', 0))
-            rate = pd.to_numeric(str(row.get('Interest_Rate', 0)).replace('%', '').strip(), errors='coerce') if pd.notna(row.get('Interest_Rate')) else 0
+            principal = clean_amt(row.get('principal_amount', 0))
+            outstanding = clean_amt(row.get('outstanding_principal', 0))
+            emi = clean_amt(row.get('monthly_emi', 0))
+            rate = pd.to_numeric(str(row.get('interest_rate', 0)).replace('%', '').strip(), errors='coerce') if pd.notna(row.get('interest_rate')) else 0
             
             total_principal += principal
             outstanding_principal += outstanding
@@ -415,21 +489,21 @@ def analyze_loans(data):
                      total_interest_paid += (emi * months_paid) - principal_paid
             
             loans.append({
-                "Loan_Name": row.get('Loan_Type', 'Unknown Loan'),
-                "Lender": row.get('Loan_Provider', 'Unknown'),
+                "Loan_Name": row.get('loan_type', 'Unknown Loan'),
+                "Lender": row.get('loan_provider', 'Unknown'),
                 "Principal": principal,
                 "Outstanding": outstanding,
-                "Interest_Rate": rate,
+                "interest_rate": rate,
                 "Monthly_Payment": emi,
-                "Start_Date": str(row.get('Start_Date', 'N/A')),
+                "start_date": str(row.get('start_date', 'N/A')),
                 "End_Date": "N/A", # Needs tenure
-                "Status": "Active" if outstanding > 0 else "Closed"
+                "status": "Active" if outstanding > 0 else "Closed"
             })
             
     # Calculate monthly interest burden on current outstanding
     monthly_interest = 0
     for l in loans:
-        monthly_interest += l['Outstanding'] * (l['Interest_Rate'] / 100.0) / 12.0
+        monthly_interest += l['Outstanding'] * (l['interest_rate'] / 100.0) / 12.0
             
     return {
         "total_principal": total_principal,
@@ -437,56 +511,153 @@ def analyze_loans(data):
         "monthly_interest": monthly_interest,
         "total_interest_paid": total_interest_paid,
         "monthly_emi": monthly_emi,
-        "active_loans": len([l for l in loans if l['Status'] == 'Active']),
+        "active_loans": len([l for l in loans if l['status'] == 'Active']),
         "loans": loans
     }
 
 def analyze_data_quality(data):
     """
-    Data Quality Engine
+    Data Quality Engine - Context Aware Scoring
     """
     if data is None or data.empty:
-        return {"score": 0, "total_records": 0, "columns": [], "recommendations": []}
+        return {"score": 0, "total_records": 0, "missing_values": 0, "duplicate_records": 0, 
+                "invalid_values": 0, "columns_analyzed": 0, "columns": [], "recommendations": []}
         
     total_records = len(data)
     recommendations = set()
     cols_data = []
     
-    missing_points = 0
-    invalid_points = 0
-    duplicate_rows = data.duplicated().sum()
+    # Define required fields per record type
+    req_map = {
+        'sale': ['sale_id', 'date', 'product_id', 'quantity', 'selling_price'],
+        'inventory': ['product_id', 'product_name', 'current_stock', 'minimum_stock', 'reorder_level', 'purchase_price', 'selling_price'],
+        'receivable': ['customer_id', 'credit_amount', 'due_date', 'amount_paid', 'payment_status'],
+        'expense': ['expense_id', 'category', 'amount'],
+        'loan': ['loan_id', 'principal_amount', 'interest_rate', 'monthly_emi', 'start_date', 'outstanding_principal'],
+        'scheme': ['scheme_name', 'type'],
+        'customer': ['customer_id', 'customer_name', 'contact_number', 'city']
+    }
     
-    if duplicate_rows > 0:
-        recommendations.add("Remove duplicate transactions")
-        missing_points += (duplicate_rows / total_records) * 50
+    # 1. Context-aware missing values (30%)
+    total_required_expected = 0
+    total_required_missing = 0
     
-    for col in data.columns:
-        missing = data[col].isna().sum()
-        missing_pct = (missing / total_records) * 100
-        invalid = 0
+    # Dictionary to track legitimate missing vs total for column-level table
+    col_required_expected = {c: 0 for c in data.columns}
+    col_required_missing = {c: 0 for c in data.columns}
+    
+    if 'record_type' in data.columns:
+        for rtype, group in data.groupby(data['record_type'].astype(str).str.lower()):
+            req_cols = req_map.get(rtype, [])
+            for c in req_cols:
+                if c in data.columns:
+                    expected = len(group)
+                    missing = group[c].isna().sum() + (group[c].astype(str).str.strip() == '').sum()
+                    
+                    total_required_expected += expected
+                    total_required_missing += missing
+                    col_required_expected[c] += expected
+                    col_required_missing[c] += missing
+    
+    missing_penalty = 0
+    if total_required_expected > 0:
+        missing_penalty = (total_required_missing / total_required_expected) * 30
+        if missing_penalty > 0:
+            recommendations.add("Some records are missing required fields specific to their transaction type.")
+            
+    # 2. Duplicate records (20%)
+    dup_penalty = 0
+    total_dups = 0
+    key_cols = ['sale_id', 'product_id', 'customer_id', 'expense_id', 'loan_id']
+    for kc in key_cols:
+        if kc in data.columns:
+            # Check for duplicates, ignoring NaNs
+            valid_mask = data[kc].notna() & (data[kc].astype(str).str.strip() != '')
+            dups = data.loc[valid_mask, kc].duplicated().sum()
+            total_dups += dups
+            if dups > 0:
+                recommendations.add(f"Duplicate transaction identifiers detected in {kc}. Review these before financial reporting.")
+                
+    if total_records > 0:
+        # A 5% duplicate rate loses all 20 points
+        dup_rate = total_dups / total_records
+        dup_penalty = min(20, (dup_rate / 0.05) * 20)
         
-        # Check specific conditions
-        if col in ['Purchase_Price', 'Selling_Price', 'Quantity', 'Amount']:
-            # Try to convert to numeric to find negatives
-            nums = pd.to_numeric(data[col].astype(str).str.replace(r'[₹,%]', '', regex=True).str.strip(), errors='coerce')
-            invalid = (nums < 0).sum()
-            if invalid > 0:
-                invalid_points += (invalid / total_records) * 100
-                recommendations.add(f"Validate negative values in {col}")
+    # 3. Invalid dates (15%) & 4. Invalid numerics (15%)
+    date_penalty = 0
+    num_penalty = 0
+    total_invalid = 0
+    
+    date_cols = ['date', 'due_date', 'payment_date', 'registration_date', 'start_date', 'next_payment_date', 'next_due_date']
+    num_cols = ['quantity', 'selling_price', 'purchase_price', 'amount', 'credit_amount', 'amount_paid', 'outstanding_amount', 'principal_amount', 'monthly_emi', 'current_stock', 'minimum_stock']
+    
+    col_invalid_count = {c: 0 for c in data.columns}
+    
+    for c in data.columns:
+        invalid_count = 0
+        if c in date_cols:
+            orig_notna = data[c].notna() & (data[c].astype(str).str.strip() != '')
+            coerced = pd.to_datetime(data[c], errors='coerce')
+            invalid_count = (orig_notna & coerced.isna()).sum()
+            if invalid_count > 0:
+                recommendations.add(f"Some records contain invalid dates in '{c}'. Correct these to improve trend calculations.")
                 
-        if col == 'Customer_ID' and missing > 0:
-            recommendations.add("Fill missing customer IDs")
-        if col in ['Product_ID', 'SKU'] and missing > 0:
-            recommendations.add("Fill missing product/SKU IDs")
-        if col == 'Date':
-            invalid_dates = pd.to_datetime(data[col], errors='coerce').isna().sum() - missing
-            if invalid_dates > 0:
-                invalid += invalid_dates
-                invalid_points += (invalid_dates / total_records) * 100
-                recommendations.add("Correct invalid dates")
+        elif c in num_cols:
+            orig_notna = data[c].notna() & (data[c].astype(str).str.strip() != '')
+            coerced = pd.to_numeric(data[c], errors='coerce')
+            unparseable = orig_notna & coerced.isna()
+            negative = coerced < 0
+            invalid_count = (unparseable | negative).sum()
+            if invalid_count > 0:
+                recommendations.add(f"Invalid numeric values (negative or unparseable text) detected in '{c}'.")
                 
-        if missing > 0:
-            missing_points += missing_pct * 0.5
+        col_invalid_count[c] = invalid_count
+        total_invalid += invalid_count
+        
+    if total_records > 0:
+        date_invalid = sum(col_invalid_count[c] for c in date_cols if c in col_invalid_count)
+        date_rate = date_invalid / total_records
+        date_penalty = min(15, (date_rate / 0.05) * 15)
+        
+        num_invalid = sum(col_invalid_count[c] for c in num_cols if c in col_invalid_count)
+        num_rate = num_invalid / total_records
+        num_penalty = min(15, (num_rate / 0.05) * 15)
+
+    # 5. Missing Important IDs (10%)
+    id_penalty = 0
+    missing_ids = 0
+    for id_col in ['customer_id', 'product_id', 'business_id']:
+        if id_col in data.columns:
+            missing_ids += col_required_missing.get(id_col, 0)
+            
+    if total_required_expected > 0:
+        id_rate = missing_ids / total_required_expected
+        id_penalty = min(10, (id_rate / 0.05) * 10)
+        
+    # 6. Schema Completeness (10%)
+    schema_penalty = 0
+    expected_core_cols = ['record_type', 'date', 'product_id', 'quantity', 'total_amount']
+    missing_schema = [c for c in expected_core_cols if c not in data.columns]
+    if missing_schema:
+        schema_penalty = 10
+        recommendations.add("Dataset is missing fundamental core columns (e.g. record_type, date, total_amount).")
+        
+    if not recommendations:
+        recommendations.add("Data quality is strong. No major integrity issues were detected.")
+
+    score = 100 - (missing_penalty + dup_penalty + date_penalty + num_penalty + id_penalty + schema_penalty)
+    score = max(0, min(100, score))
+    
+    # Build columns data
+    for col in data.columns:
+        expected = col_required_expected.get(col, 0)
+        req_missing = col_required_missing.get(col, 0)
+        invalid = col_invalid_count.get(col, 0)
+        
+        if expected > 0:
+            missing_pct = (req_missing / expected) * 100
+        else:
+            missing_pct = 0
             
         quality = "Good"
         if missing_pct > 20 or invalid > (total_records * 0.05):
@@ -496,21 +667,19 @@ def analyze_data_quality(data):
             
         cols_data.append({
             "Column": col,
-            "Missing": missing,
+            "Missing": req_missing,
             "Missing_Pct": missing_pct,
             "Invalid": invalid,
             "Unique": data[col].nunique(),
             "Quality": quality
         })
         
-    score = max(0, min(100, 100 - missing_points - invalid_points))
-    
     return {
         "score": score,
         "total_records": total_records,
-        "missing_values": data.isna().sum().sum(),
-        "duplicate_records": duplicate_rows,
-        "invalid_values": sum([c['Invalid'] for c in cols_data]),
+        "missing_values": total_required_missing,
+        "duplicate_records": total_dups,
+        "invalid_values": total_invalid,
         "columns_analyzed": len(data.columns),
         "columns": cols_data,
         "recommendations": list(recommendations)
@@ -522,7 +691,7 @@ def check_scheme_eligibility(business, financial, customers=None):
     """
     schemes = [
         {"scheme_name": "MUDRA Yojana", "eligible": True, "missing_docs": ["Updated GST Return", "Business Pan Card"], "type": "GOVT"},
-        {"scheme_name": "PMEGP", "eligible": business.get("Sector", "") == "Manufacturing", "reason": "Manufacturing sector only", "type": "GOVT"}
+        {"scheme_name": "PMEGP", "eligible": business.get("sector", "") == "Manufacturing", "reason": "Manufacturing sector only", "type": "GOVT"}
     ]
     
     # Business promotional schemes
@@ -598,39 +767,39 @@ def analyze_customers(data):
     """
     13. Customer Engine (CRM)
     """
-    if data.empty or 'Record_Type' not in data.columns:
+    if data.empty or 'record_type' not in data.columns:
         return {"total_customers": 0, "active_customers": 0, "new_customers": 0, "high_value_customers": 0, "total_revenue": 0, "aov": 0, "customers": []}
 
-    sales_df = data[data['Record_Type'] == 'Sale'].copy()
-    cust_df = data[data['Record_Type'] == 'Receivable'].copy() # We mapped Customers to Receivable in consolidate script
+    sales_df = data[data['record_type'] == 'Sale'].copy()
+    cust_df = data[data['record_type'] == 'Receivable'].copy() # We mapped Customers to Receivable in consolidate script
     
     if cust_df.empty:
         return {"total_customers": 0, "active_customers": 0, "new_customers": 0, "high_value_customers": 0, "total_revenue": 0, "aov": 0, "customers": []}
 
     # Clean sales amounts
     if not sales_df.empty:
-        sales_df['Quantity_Num'] = pd.to_numeric(sales_df['Quantity'], errors='coerce').fillna(0)
+        sales_df['Quantity_Num'] = pd.to_numeric(sales_df['quantity'], errors='coerce').fillna(0)
         
         # Pre-compute product selling prices for accurate revenue (we can also just use Total_Amount if it's there and valid, but prompt asked for strict math)
         # However, the strict math is Qty * SP * (1-Discount/100).
-        # Let's extract numbers from 'Selling_Price' and 'Total_Amount'
+        # Let's extract numbers from 'selling_price' and 'total_amount'
         def extract_num(val):
             return pd.to_numeric(str(val).replace('₹', '').replace(',', '').strip(), errors='coerce')
         
-        sales_df['Selling_Price_Num'] = sales_df['Selling_Price'].apply(extract_num).fillna(0)
+        sales_df['Selling_Price_Num'] = sales_df['selling_price'].apply(extract_num).fillna(0)
         
-        if 'Discount_Percent' in sales_df.columns:
-            sales_df['Discount_Num'] = pd.to_numeric(sales_df['Discount_Percent'], errors='coerce').fillna(0)
+        if 'discount_percent' in sales_df.columns:
+            sales_df['Discount_Num'] = pd.to_numeric(sales_df['discount_percent'], errors='coerce').fillna(0)
         else:
             sales_df['Discount_Num'] = 0
 
         sales_df['Revenue'] = sales_df['Quantity_Num'] * sales_df['Selling_Price_Num'] * (1 - (sales_df['Discount_Num'] / 100.0))
-        if 'Date' in sales_df.columns:
-            sales_df['Date_Parsed'] = pd.to_datetime(sales_df['Date'], errors='coerce')
+        if 'date' in sales_df.columns:
+            sales_df['Date_Parsed'] = pd.to_datetime(sales_df['date'], errors='coerce')
         else:
             sales_df['Date_Parsed'] = pd.NaT
     else:
-        sales_df = pd.DataFrame(columns=['Customer_ID', 'Revenue', 'Quantity_Num', 'Date_Parsed', 'Product_ID'])
+        sales_df = pd.DataFrame(columns=['customer_id', 'Revenue', 'Quantity_Num', 'Date_Parsed', 'product_id'])
 
     customers_list = []
     total_customers = len(cust_df)
@@ -644,8 +813,8 @@ def analyze_customers(data):
 
     # Optimize by pre-aggregating sales
     sales_agg = {}
-    if not sales_df.empty and 'Customer_ID' in sales_df.columns:
-        agg_df = sales_df.groupby('Customer_ID').agg(
+    if not sales_df.empty and 'customer_id' in sales_df.columns:
+        agg_df = sales_df.groupby('customer_id').agg(
             orders=('Revenue', 'size'),
             spent=('Revenue', 'sum'),
             qty_purchased=('Quantity_Num', 'sum'),
@@ -654,24 +823,24 @@ def analyze_customers(data):
         ).reset_index()
         
         # Most purchased product
-        if 'Product_ID' in sales_df.columns:
-            prod_counts = sales_df.groupby(['Customer_ID', 'Product_ID'])['Quantity_Num'].sum().reset_index()
-            idx = prod_counts.groupby('Customer_ID')['Quantity_Num'].idxmax()
-            most_purchased_df = prod_counts.loc[idx].set_index('Customer_ID')['Product_ID']
-            agg_df['most_purchased'] = agg_df['Customer_ID'].map(most_purchased_df)
+        if 'product_id' in sales_df.columns:
+            prod_counts = sales_df.groupby(['customer_id', 'product_id'])['Quantity_Num'].sum().reset_index()
+            idx = prod_counts.groupby('customer_id')['Quantity_Num'].idxmax()
+            most_purchased_df = prod_counts.loc[idx].set_index('customer_id')['product_id']
+            agg_df['most_purchased'] = agg_df['customer_id'].map(most_purchased_df)
         
-        sales_agg = agg_df.set_index('Customer_ID').to_dict(orient='index')
+        sales_agg = agg_df.set_index('customer_id').to_dict(orient='index')
 
     for _, c_row in cust_df.iterrows():
-        c_id = c_row.get('Customer_ID', 'UNKNOWN')
-        c_name = c_row.get('Customer_Name', 'Unknown')
-        c_business = c_row.get('Business_Name', 'Unknown')
-        c_phone = c_row.get('Contact_Number', 'N/A')
-        c_email = c_row.get('Email', 'N/A')
-        c_city = c_row.get('City', 'Unknown')
-        c_type = c_row.get('Customer_Type', 'Unknown')
-        c_reg = pd.to_datetime(c_row.get('Registration_Date', None), errors='coerce')
-        c_rating = c_row.get('Customer_Rating', 0)
+        c_id = c_row.get('customer_id', 'UNKNOWN')
+        c_name = c_row.get('customer_name', 'Unknown')
+        c_business = c_row.get('business_name', 'Unknown')
+        c_phone = c_row.get('contact_number', 'N/A')
+        c_email = c_row.get('email', 'N/A')
+        c_city = c_row.get('city', 'Unknown')
+        c_type = c_row.get('customer_type', 'Unknown')
+        c_reg = pd.to_datetime(c_row.get('registration_date', None), errors='coerce')
+        c_rating = c_row.get('customer_rating', 0)
         
         c_stats = sales_agg.get(c_id, {})
         orders = c_stats.get('orders', 0)
@@ -724,15 +893,15 @@ def analyze_customers(data):
         total_orders_global += orders
         
         customers_list.append({
-            "Customer_ID": c_id,
-            "Customer_Name": c_name,
-            "Business_Name": c_business,
+            "customer_id": c_id,
+            "customer_name": c_name,
+            "business_name": c_business,
             "Phone": c_phone,
-            "Email": c_email,
-            "City": c_city,
-            "Customer_Type": c_type,
-            "Registration_Date": c_reg.strftime('%Y-%m-%d') if pd.notna(c_reg) else "N/A",
-            "Customer_Rating": c_rating,
+            "email": c_email,
+            "city": c_city,
+            "customer_type": c_type,
+            "registration_date": c_reg.strftime('%Y-%m-%d') if pd.notna(c_reg) else "N/A",
+            "customer_rating": c_rating,
             "Total_Orders": orders,
             "Total_Spent": spent,
             "AOV": aov,
@@ -741,7 +910,7 @@ def analyze_customers(data):
             "Last_Purchase_Date": last_purchase.strftime('%Y-%m-%d') if pd.notna(last_purchase) else "N/A",
             "Most_Purchased_Product": most_purchased,
             "Segment": segment,
-            "Status": status
+            "status": status
         })
 
     # Sort customers by spent descending

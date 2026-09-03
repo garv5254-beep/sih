@@ -115,7 +115,7 @@ class BizMetricsContextBuilder:
         business = pipeline_result.get("business", {})
         context["business_profile"] = {
             "name": business.get("Shop_Name"),
-            "sector": business.get("Sector"),
+            "sector": business.get("sector"),
             "size": business.get("Business_Size")
         }
 
@@ -147,7 +147,7 @@ class BizMetricsContextBuilder:
                 "total": cust.get("total_customers", 0),
                 "active": cust.get("active_customers", 0),
                 "high_value": cust.get("high_value_customers", 0),
-                "at_risk": sum(1 for c in cust.get("customers", []) if c.get("Status") == "At Risk"),
+                "at_risk": sum(1 for c in cust.get("customers", []) if c.get("status") == "At Risk"),
                 "aov": cust.get("aov", 0)
             }
 

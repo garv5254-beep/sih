@@ -55,12 +55,12 @@ class RuralBusinessAdvisor:
     def _clean_currency(self):
         """Remove ₹ symbol and convert to float"""
         currency_cols = {
-            'sales': ['Total_Amount', 'Selling_Price', 'Discount_Percent', 'Credit_Amount'],
-            'expenses': ['Amount'],
-            'customers': ['Total_Credit_Sales', 'Total_Payments', 'Outstanding_Amount'],
-            'vendors': ['Total_Ordered', 'Total_Paid', 'Outstanding_Amount'],
-            'products': ['Purchase_Price', 'Selling_Price', 'Current_Stock', 'Maximum_Stock', 'Minimum_Stock'],
-            'loans': ['Principal_Amount', 'Monthly_EMI', 'Outstanding_Principal']
+            'sales': ['total_amount', 'selling_price', 'discount_percent', 'credit_amount'],
+            'expenses': ['amount'],
+            'customers': ['Total_Credit_Sales', 'Total_Payments', 'outstanding_amount'],
+            'vendors': ['Total_Ordered', 'Total_Paid', 'outstanding_amount'],
+            'products': ['purchase_price', 'selling_price', 'current_stock', 'maximum_stock', 'minimum_stock'],
+            'loans': ['principal_amount', 'monthly_emi', 'outstanding_principal']
         }
         
         for df_name, cols in currency_cols.items():
@@ -79,7 +79,7 @@ class RuralBusinessAdvisor:
             print("="*60)
             print(f"Owner: {b['Owner_Name']}")
             print(f"Location: {b['Village_Town']}, {b['State']}")
-            print(f"Sector: {b['Sector']} | Size: {b['Business_Size']}")
+            print(f"Sector: {b['sector']} | Size: {b['Business_Size']}")
             print(f"Active Since: {b['Business_Start_Date']}")
             print(f"Investment: ₹{b['Initial_Investment']:,} → ₹{b['Current_Investment']:,}")
             print(f"Employees: {b['Number_of_Employees']}")
@@ -92,18 +92,18 @@ class RuralBusinessAdvisor:
         print("💰 Calculating financial metrics...")
         
         # Revenue
-        total_revenue = self.sales['Total_Amount'].sum()
-        cash_sales = self.sales[self.sales['Payment_Mode'] == 'Cash']['Total_Amount'].sum()
-        credit_sales = self.sales[self.sales['Payment_Mode'] == 'Credit']['Total_Amount'].sum()
-        digital_sales = self.sales[self.sales['Payment_Mode'].isin(['UPI', 'Digital'])]['Total_Amount'].sum()
+        total_revenue = self.sales['total_amount'].sum()
+        cash_sales = self.sales[self.sales['payment_mode'] == 'Cash']['total_amount'].sum()
+        credit_sales = self.sales[self.sales['payment_mode'] == 'Credit']['total_amount'].sum()
+        digital_sales = self.sales[self.sales['payment_mode'].isin(['UPI', 'Digital'])]['total_amount'].sum()
         
         # Expenses
-        total_expenses = self.expenses['Amount'].sum()
-        fixed_costs = self.expenses[self.expenses['Is_Fixed'] == 'Yes']['Amount'].sum()
-        variable_costs = self.expenses[self.expenses['Is_Fixed'] == 'No']['Amount'].sum()
+        total_expenses = self.expenses['amount'].sum()
+        fixed_costs = self.expenses[self.expenses['is_fixed'] == 'Yes']['amount'].sum()
+        variable_costs = self.expenses[self.expenses['is_fixed'] == 'No']['amount'].sum()
         
         # EMI (from loans)
-        total_emi = self.loans['Monthly_EMI'].sum()
+        total_emi = self.loans['monthly_emi'].sum()
         
         # Profit
         net_profit = total_revenue - total_expenses
@@ -124,8 +124,8 @@ class RuralBusinessAdvisor:
         breakeven_revenue = fixed_costs / contribution_margin_ratio if contribution_margin_ratio > 0 else 0
         
         # Cash flow
-        collected_cash = self.sales[self.sales['Payment_Status'] == 'Completed']['Total_Amount'].sum()
-        paid_expenses = self.expenses[self.expenses['Payment_Status'] == 'Paid']['Amount'].sum()
+        collected_cash = self.sales[self.sales['payment_status'] == 'Completed']['total_amount'].sum()
+        paid_expenses = self.expenses[self.expenses['payment_status'] == 'Paid']['amount'].sum()
         cash_flow = collected_cash - paid_expenses
         
         # Debt burden
@@ -158,9 +158,9 @@ class RuralBusinessAdvisor:
         """Estimate COGS from sales and product margins"""
         total_cogs = 0
         for _, sale in self.sales.iterrows():
-            product = self.products[self.products['Product_ID'] == sale['Product_ID']]
+            product = self.products[self.products['product_id'] == sale['product_id']]
             if not product.empty:
-                cost = product.iloc[0]['Purchase_Price'] * sale['Quantity']
+                cost = product.iloc[0]['purchase_price'] * sale['quantity']
                 total_cogs += cost
         return total_cogs
     
@@ -191,13 +191,13 @@ class RuralBusinessAdvisor:
         """Analyze customer receivables"""
         print("👥 Analyzing receivables...")
         
-        total_receivables = self.customers['Outstanding_Amount'].sum()
-        overdue_receivables = self.customers[self.customers['Payment_Status'].isin(['Attention', 'Overdue'])]['Outstanding_Amount'].sum()
+        total_receivables = self.customers['outstanding_amount'].sum()
+        overdue_receivables = self.customers[self.customers['payment_status'].isin(['Attention', 'Overdue'])]['outstanding_amount'].sum()
         
         # Ageing bucket
-        normal = self.customers[self.customers['Days_Overdue'] <= 7]['Outstanding_Amount'].sum()
-        attention = self.customers[(self.customers['Days_Overdue'] > 7) & (self.customers['Days_Overdue'] <= 30)]['Outstanding_Amount'].sum()
-        overdue = self.customers[self.customers['Days_Overdue'] > 30]['Outstanding_Amount'].sum()
+        normal = self.customers[self.customers['Days_Overdue'] <= 7]['outstanding_amount'].sum()
+        attention = self.customers[(self.customers['Days_Overdue'] > 7) & (self.customers['Days_Overdue'] <= 30)]['outstanding_amount'].sum()
+        overdue = self.customers[self.customers['Days_Overdue'] > 30]['outstanding_amount'].sum()
         
         # DSO
         daily_revenue = self.financial_metrics['total_revenue'] / 30
@@ -231,9 +231,9 @@ class RuralBusinessAdvisor:
         
         # Worst customers
         print("\n⚠️  Problem Customers:")
-        problem_customers = self.customers[self.customers['Outstanding_Amount'] > total_rev*0.05].sort_values('Outstanding_Amount', ascending=False)
+        problem_customers = self.customers[self.customers['outstanding_amount'] > total_rev*0.05].sort_values('outstanding_amount', ascending=False)
         for _, cust in problem_customers.iterrows():
-            print(f"  • {cust['Customer_Name']}: ₹{cust['Outstanding_Amount']:,.0f} ({cust['Days_Overdue']:.0f} days overdue)")
+            print(f"  • {cust['customer_name']}: ₹{cust['outstanding_amount']:,.0f} ({cust['Days_Overdue']:.0f} days overdue)")
         
         print("="*60 + "\n")
     
@@ -243,10 +243,10 @@ class RuralBusinessAdvisor:
         """Analyze inventory status"""
         print("📦 Analyzing inventory...")
         
-        low_stock = self.products[self.products['Current_Stock'] < self.products['Reorder_Level']]
-        dead_stock = self.products[self.products['Current_Stock'] > self.products['Maximum_Stock']]
+        low_stock = self.products[self.products['current_stock'] < self.products['reorder_level']]
+        dead_stock = self.products[self.products['current_stock'] > self.products['maximum_stock']]
         
-        total_inventory_value = (self.products['Current_Stock'] * self.products['Purchase_Price']).sum()
+        total_inventory_value = (self.products['current_stock'] * self.products['purchase_price']).sum()
         
         self.inventory_metrics = {
             'total_items': len(self.products),
@@ -270,12 +270,12 @@ class RuralBusinessAdvisor:
         print(f"Total Inventory Value: ₹{m['total_inventory_value']:>12,.0f}")
         print(f"\n⚠️  LOW STOCK ITEMS ({m['low_stock_items']}):")
         for _, prod in m['low_stock'].iterrows():
-            print(f"  • {prod['Product_Name']}: {prod['Current_Stock']:.0f} units (reorder at {prod['Reorder_Level']:.0f})")
+            print(f"  • {prod['product_name']}: {prod['current_stock']:.0f} units (reorder at {prod['reorder_level']:.0f})")
         
         print(f"\n⚠️  DEAD STOCK ITEMS ({m['dead_stock_items']}):")
         for _, prod in m['dead_stock'].iterrows():
-            value = prod['Current_Stock'] * prod['Purchase_Price']
-            print(f"  • {prod['Product_Name']}: {prod['Current_Stock']:.0f} units = ₹{value:,.0f} stuck")
+            value = prod['current_stock'] * prod['purchase_price']
+            print(f"  • {prod['product_name']}: {prod['current_stock']:.0f} units = ₹{value:,.0f} stuck")
         
         print("="*60 + "\n")
     
@@ -328,7 +328,7 @@ class RuralBusinessAdvisor:
             self.risk_indicators.append({
                 'risk': 'Dead Stock',
                 'severity': 'MEDIUM',
-                'value': f"₹{self.inventory_metrics['dead_stock'].apply(lambda x: x['Current_Stock'] * x['Purchase_Price']).sum():,.0f}",
+                'value': f"₹{self.inventory_metrics['dead_stock'].apply(lambda x: x['current_stock'] * x['purchase_price']).sum():,.0f}",
                 'action': 'Plan promotional clearance'
             })
         

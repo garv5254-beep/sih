@@ -41,12 +41,12 @@ col1, col2 = st.columns([2, 1])
 
 @st.cache_data
 def get_monthly_sales(data):
-    sales = data[data['Record_Type'].str.lower() == 'sale']
-    if not sales.empty and 'Date' in sales.columns:
+    sales = data[data['record_type'].str.lower() == 'sale']
+    if not sales.empty and 'date' in sales.columns:
         sales = sales.copy()
-        sales['Date'] = pd.to_datetime(sales['Date'], errors='coerce')
-        monthly = sales.groupby(sales['Date'].dt.to_period('M'))['Amount'].sum().reset_index()
-        monthly['Date'] = monthly['Date'].astype(str)
+        sales['date'] = pd.to_datetime(sales['date'], errors='coerce')
+        monthly = sales.groupby(sales['date'].dt.to_period('M'))['amount'].sum().reset_index()
+        monthly['date'] = monthly['date'].astype(str)
         return monthly
     return None
 
@@ -55,8 +55,8 @@ with col1:
     try:
         monthly_sales = get_monthly_sales(raw_data)
         if monthly_sales is not None:
-            fig = create_line_chart(monthly_sales, 'Date', 'Amount', '', color=colors['terracotta'])
-            st.plotly_chart(fig, use_container_width=True)
+            fig = create_line_chart(monthly_sales, 'date', 'amount', '', color=colors['terracotta'])
+            st.plotly_chart(fig, width="stretch")
         else:
             st.info("Trend data currently unavailable based on dataset dates.")
     except Exception:
@@ -95,8 +95,35 @@ st.markdown("<br><hr style='border: none; border-top: 1px solid #E5E7EB;'><br>",
 st.markdown("### Quick Insights")
 i_c1, i_c2, i_c3 = st.columns(3)
 with i_c1:
-    if risks:
-        insight_card("Risk Alert", risks[0].get('risk', 'Attention required.'))
+    if risks is not None and len(risks) > 0:
+        if isinstance(risks, pd.DataFrame):
+            first_risk = risks.iloc[0]
+            risk_text = (
+                first_risk.get("risk")
+                or first_risk.get("Risk")
+                or first_risk.get("description")
+                or first_risk.get("description")
+                or "Attention required."
+            )
+        elif isinstance(risks, list):
+            first_risk = risks[0]
+            if isinstance(first_risk, dict):
+                risk_text = (
+                    first_risk.get("risk")
+                    or first_risk.get("description")
+                    or "Attention required."
+                )
+            else:
+                risk_text = str(first_risk)
+        elif isinstance(risks, dict):
+            risk_text = (
+                risks.get("risk")
+                or risks.get("description")
+                or "Attention required."
+            )
+        else:
+            risk_text = str(risks)
+        insight_card("Risk Alert", risk_text)
     else:
         insight_card("All Clear", "No critical risks detected.")
         

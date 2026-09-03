@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import numpy as np
 from components.sidebar import render_sidebar
 from components.header import render_header
 from components.cards import kpi_card
@@ -21,36 +22,139 @@ raw_data = st.session_state.get("raw_data", pd.DataFrame())
 receivables = result.get("receivables", {})
 
 if not raw_data.empty:
-    rec_df = raw_data[raw_data['Record_Type'].str.lower() == 'receivable'].copy()
+    rec_df = raw_data[raw_data['record_type'].astype(str).str.lower() == 'receivable'].copy()
 else:
     rec_df = pd.DataFrame()
 
-# KPIs
+# ---- KPIs ----
 st.markdown("### Outstanding Summary")
-c1, c2, c3 = st.columns(3)
+c1, c2, c3, c4 = st.columns(4)
 
 total_outstanding = receivables.get('total_outstanding', 0.0)
-overdue = receivables.get('overdue', 0.0)
-dso = receivables.get('days_sales_outstanding', 0)
+total_invoiced = receivables.get('total_invoiced', 0.0)
+total_paid = receivables.get('total_paid', 0.0)
+collection_rate = receivables.get('collection_rate', 0.0)
 
-with c1: kpi_card("Total Outstanding", format_currency(total_outstanding))
-with c2: kpi_card("Overdue Payments", format_currency(overdue))
-with c3: kpi_card("Days Sales Outstanding (DSO)", f"{dso} days")
+with c1: kpi_card("Total Receivables (Outstanding)", format_currency(total_outstanding))
+with c2: kpi_card("Total Invoiced", format_currency(total_invoiced))
+with c3: kpi_card("Total Paid", format_currency(total_paid))
+with c4: kpi_card("Collection Rate", f"{collection_rate:.1f}%")
+
+st.write("")
+c5, c6, c7 = st.columns(3)
+with c5: kpi_card("Overdue", format_currency(receivables.get('overdue', 0.0)))
+with c6: kpi_card("Due Soon", format_currency(receivables.get('due_soon', 0.0)))
+with c7: kpi_card("Pending", format_currency(receivables.get('pending', 0.0)))
 
 st.markdown("<hr style='border: none; border-top: 1px solid #E5E7EB;'>", unsafe_allow_html=True)
 
-st.markdown("### Outstanding Invoices")
+# ---- Status Formatting ----
+def color_status(val):
+    if pd.isna(val):
+        return ""
+    status = str(val).strip().lower()
+    if status == "overdue":
+        return "color: #9D4330; font-weight: 700;"
+    elif status == "due soon":
+        return "color: #C65D47; font-weight: 700;"
+    elif status in ("paid", "settled", "cleared"):
+        return "color: #6B705C; font-weight: 700;"
+    elif status == "pending":
+        return "color: #555555; font-weight: 700;"
+    return ""
 
 if not rec_df.empty:
-    display_cols = [col for col in ['Date', 'Customer_ID', 'Total_Amount', 'Due_Date', 'Status'] if col in rec_df.columns]
+    # Build clean invoice table
+    inv_df = rec_df.rename(columns={
+        'customer_name': 'Customer',
+        'sale_id': 'Invoice',
+        'total_amount': 'Invoice Amount',
+        'total_paid_amount': 'Amount Paid',
+        'outstanding_amount': 'Outstanding',
+        'date': 'Invoice Date',
+        'due_date': 'Due Date',
+        'Days_Overdue': 'Days Overdue'
+    })
     
-    if 'Status' in rec_df.columns:
-        # Simple color formatting for status
-        def color_status(val):
-            color = 'red' if val.lower() == 'overdue' else 'orange' if val.lower() == 'pending' else 'green'
-            return f'color: {color}'
-        st.dataframe(rec_df[display_cols].style.map(color_status, subset=['Status']))
-    else:
-        st.dataframe(rec_df[display_cols])
+    # ---------------------------------------------------------
+    # CLEAN RECEIVABLE DATE DATA
+    # ---------------------------------------------------------
+    
+    if 'Due Date' in inv_df.columns:
+        inv_df['Due Date'] = pd.to_datetime(
+            inv_df['Due Date'],
+            errors='coerce'
+        )
+    
+    if 'Payment Date' in inv_df.columns:
+        inv_df['Payment Date'] = pd.to_datetime(
+            inv_df['Payment Date'],
+            errors='coerce'
+        )
+    
+    # Ensure numeric receivable fields are actually numeric
+    for col in ['Credit Amount', 'Invoice Amount', 'Amount Paid', 'Outstanding']:
+        if col in inv_df.columns:
+            inv_df[col] = pd.to_numeric(
+                inv_df[col],
+                errors='coerce'
+            ).fillna(0)
+    
+    # ---------------------------------------------------------
+    # CUSTOMER-LEVEL RECEIVABLE SUMMARY
+    # ---------------------------------------------------------
+    
+    st.markdown("### Customer-Level Receivables")
+    
+    cust_group = inv_df.groupby('Customer').agg(
+        Total_Invoiced=('Invoice Amount', 'sum'),
+        Total_Paid=('Amount Paid', 'sum'),
+        Outstanding=('Outstanding', 'sum'),
+        Oldest_Due_Date=('Due Date', lambda x: x.min() if x.notna().any() else pd.NaT),
+        Max_Days_Overdue=('Days Overdue', 'max')
+    ).reset_index()
+    
+    # Determine Customer Status
+    def get_cust_status(row):
+        if row['Outstanding'] <= 0:
+            return "Paid"
+        if row['Max_Days_Overdue'] > 0:
+            return "Overdue"
+        return "Pending"
+        
+    cust_group['status'] = cust_group.apply(get_cust_status, axis=1)
+    cust_group = cust_group.sort_values(by='Outstanding', ascending=False)
+    
+    st.dataframe(
+        cust_group.style.map(color_status, subset=['status'])
+                        .format({
+                            'Total_Invoiced': '₹ {:,.2f}',
+                            'Total_Paid': '₹ {:,.2f}',
+                            'Outstanding': '₹ {:,.2f}',
+                            'Max_Days_Overdue': '{:.0f}'
+                        }),
+        width="stretch"
+    )
+    
+    st.write("")
+    
+    # Invoice Level Table
+    st.markdown("### Detailed Invoices")
+    
+    display_cols = ['Customer', 'Invoice', 'Invoice Amount', 'Amount Paid', 'Outstanding', 'Invoice Date', 'Due Date', 'Days Overdue', 'status']
+    existing_cols = [c for c in display_cols if c in inv_df.columns]
+    
+    st.dataframe(
+        inv_df[existing_cols].sort_values(by=['Outstanding', 'Days Overdue'], ascending=[False, False])
+        .style.map(color_status, subset=['status'])
+              .format({
+                  'Invoice Amount': '₹ {:,.2f}',
+                  'Amount Paid': '₹ {:,.2f}',
+                  'Outstanding': '₹ {:,.2f}',
+                  'Days Overdue': '{:.0f}'
+              }),
+        width="stretch"
+    )
 else:
     st.info("No receivables data found in the current dataset.")
+

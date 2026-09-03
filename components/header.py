@@ -11,7 +11,7 @@ def render_header(title_key, description_key):
         
     with col2:
         st.markdown("<br>", unsafe_allow_html=True)
-        if st.button(t("Refresh Data", lang) if lang == "English" else "डेटा रिफ्रेश करें", use_container_width=True):
+        if st.button(t("Refresh Data", lang) if lang == "English" else "डेटा रिफ्रेश करें", width="stretch"):
             st.cache_data.clear()
             st.cache_resource.clear()
             # Clear pipeline results from session state to force a reload, but don't delete everything

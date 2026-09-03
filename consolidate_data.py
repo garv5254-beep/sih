@@ -8,7 +8,7 @@ def consolidate():
     # 1. Business Profile
     try:
         b = pd.read_csv('01_business_profile.csv', on_bad_lines='skip')
-        b['Record_Type'] = 'Business'
+        b['record_type'] = 'Business'
         dfs.append(b)
     except Exception as e:
         print(f"Failed to read business profile: {e}")
@@ -16,7 +16,7 @@ def consolidate():
     # 2. Inventory
     try:
         p = pd.read_csv('02_products_inventory.csv', on_bad_lines='skip')
-        p['Record_Type'] = 'Inventory'
+        p['record_type'] = 'Inventory'
         dfs.append(p)
     except Exception as e:
         print(f"Failed to read inventory: {e}")
@@ -24,7 +24,7 @@ def consolidate():
     # 3. Sales
     try:
         s = pd.read_csv('03_sales_transactions.csv', on_bad_lines='skip')
-        s['Record_Type'] = 'Sale'
+        s['record_type'] = 'Sale'
         dfs.append(s)
     except Exception as e:
         print(f"Failed to read sales: {e}")
@@ -32,7 +32,7 @@ def consolidate():
     # 4. Expenses
     try:
         e = pd.read_csv('04_expenses.csv', on_bad_lines='skip')
-        e['Record_Type'] = 'Expense'
+        e['record_type'] = 'Expense'
         dfs.append(e)
     except Exception as exc:
         print(f"Failed to read expenses: {exc}")
@@ -40,7 +40,7 @@ def consolidate():
     # 5. Customers
     try:
         c = pd.read_csv('05_customers_receivables.csv', on_bad_lines='skip')
-        c['Record_Type'] = 'Receivable'
+        c['record_type'] = 'Receivable'
         dfs.append(c)
     except Exception as exc:
         print(f"Failed to read customers: {exc}")
@@ -48,7 +48,7 @@ def consolidate():
     # 6. Vendors
     try:
         v = pd.read_csv('06_vendors_payables.csv', on_bad_lines='skip')
-        v['Record_Type'] = 'Payable'
+        v['record_type'] = 'Payable'
         dfs.append(v)
     except Exception as exc:
         print(f"Failed to read vendors: {exc}")
@@ -56,7 +56,7 @@ def consolidate():
     # 7. Loans
     try:
         l = pd.read_csv('07_loans_emi.csv', on_bad_lines='skip')
-        l['Record_Type'] = 'Loan'
+        l['record_type'] = 'Loan'
         dfs.append(l)
     except Exception as exc:
         print(f"Failed to read loans: {exc}")
