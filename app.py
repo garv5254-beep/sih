@@ -23,4 +23,4 @@ with st.spinner("Loading BizMetrics Dashboard..."):
             st.stop()
 
 # Redirect to the Overview page automatically
-st.switch_page("pages/01_overview.py")
+st.switch_page("pages/01_dashboard.py")

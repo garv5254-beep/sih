@@ -1,71 +1,90 @@
 import streamlit as st
 from components.sidebar import render_sidebar
 from components.header import render_header
+from components.cards import kpi_card
 from utils.theme import apply_theme, get_colors
+import pandas as pd
 
-st.set_page_config(page_title="BizMetrics - Risk Analysis", layout="wide")
+st.set_page_config(page_title="BizMetrics - Risk", layout="wide")
 apply_theme()
 render_sidebar()
-render_header("Risk Center", "Identify business risks before they become problems.")
+render_header("Risk Dashboard", "Analyze business risks and vulnerabilities")
 
 if "pipeline_result" not in st.session_state:
     st.error("BizMetrics dataset could not be found.")
-    st.info("Developer Note:\nPlace rural_business_master_data.csv in the project root or data/ directory.")
     st.stop()
 
 result = st.session_state["pipeline_result"]
-risks = result.get("risks", [])
+risks_data = result.get("risks", {"score": 100, "risk_list": []})
+score = risks_data.get("score", 100)
+risk_list = risks_data.get("risk_list", [])
+
 colors = get_colors()
 
-st.markdown("### Overall Risk Score")
-score = 100 - (len(risks) * 10)
-score = max(0, min(100, score))
-
-health_color = colors['olive'] if score > 70 else colors['terracotta'] if score > 40 else colors['deep_rust']
-st.markdown(
-    f"""
-    <div class="ep-card" style="text-align: center; max-width: 400px;">
-        <h1 style="font-size: 5rem; color: {health_color}; margin: 0;">{score}</h1>
-        <p style="color: #4B5563; font-size: 1.2rem; font-weight: 500;">Out of 100</p>
+# KPI Cards
+c1, c2, c3, c4 = st.columns(4)
+with c1: 
+    # Determine severity color for the overall score
+    score_color = colors.get("olive", "#6B705C") # High score (low risk)
+    if score <= 30:
+        score_color = colors.get("deep_rust", "#9D4330") # Critical
+    elif score <= 60:
+        score_color = colors.get("terracotta", "#C65D47") # High
+    elif score <= 80:
+        score_color = "#EAB308" # Medium (Yellow)
+        
+    st.markdown(f"""
+    <div style="background: {colors.get('background', '#FAF9F6')}; padding: 20px; border-radius: 8px; border: 1px solid #E5E7EB; text-align: center;">
+        <h3 style="margin: 0; color: #4B5563; font-size: 1rem;">Overall Risk Score</h3>
+        <h1 style="margin: 0; color: {score_color}; font-size: 2.5rem;">{score}/100</h1>
     </div>
-    """, unsafe_allow_html=True
-)
+    """, unsafe_allow_html=True)
 
-st.markdown("<br><hr style='border: none; border-top: 1px solid #E5E7EB;'><br>", unsafe_allow_html=True)
-st.markdown("### Detected Risks")
+# Count risks by severity
+high_risks = len([r for r in risk_list if r.get("severity") == "HIGH"])
+med_risks = len([r for r in risk_list if r.get("severity") == "MEDIUM"])
 
-if not risks:
-    st.success("No critical risks detected. Your business is operating smoothly.")
+with c2: kpi_card("Total Active Risks", len(risk_list))
+with c3: kpi_card("High Severity Risks", high_risks)
+with c4: kpi_card("Medium Severity Risks", med_risks)
+
+st.markdown("<br>", unsafe_allow_html=True)
+
+if not risk_list:
+    st.success("No significant business risks detected based on current data.")
 else:
-    for risk in risks:
-        severity = risk.get('severity', 'LOW').upper()
-        
-        color_map = {
-            'CRITICAL': colors['deep_rust'],
-            'HIGH': colors['deep_rust'],
-            'MEDIUM': colors['terracotta'],
-            'LOW': colors['olive']
-        }
-        bg_map = {
-            'CRITICAL': '#FEE2E2',
-            'HIGH': '#FEF3C7',
-            'MEDIUM': '#FFEDD5',
-            'LOW': '#ECFCCB'
-        }
-        
-        sev_color = color_map.get(severity, colors['olive'])
-        bg_color = bg_map.get(severity, '#ECFCCB')
-        
-        st.markdown(
-            f"""
-            <div class="ep-card" style="border-left: 4px solid {sev_color};">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                    <h4 style="margin: 0;">{risk.get('risk')}</h4>
-                    <span style="background-color: {bg_color}; color: {sev_color}; padding: 0.2rem 0.6rem; border-radius: 4px; font-size: 0.8rem; font-weight: 600;">{severity}</span>
+    st.markdown("### Risk Insights")
+    
+    # Categorize risks
+    financial_risks = [r for r in risk_list if r.get("category") == "Financial"]
+    inventory_risks = [r for r in risk_list if r.get("category") == "Inventory"]
+    customer_risks = [r for r in risk_list if r.get("category") == "Customer"]
+    receivables_risks = [r for r in risk_list if r.get("category") == "Receivables/Credit"]
+    operational_risks = [r for r in risk_list if r.get("category") == "Operational"]
+    
+    tabs = st.tabs(["All Risks", "Financial", "Inventory", "Customer", "Receivables", "Operational"])
+    
+    def render_risk_cards(risk_group):
+        if not risk_group:
+            st.info("No risks detected in this category.")
+            return
+            
+        for r in risk_group:
+            sev_color = colors.get('deep_rust', '#9D4330') if r.get("severity") == "HIGH" else colors.get('terracotta', '#C65D47')
+            st.markdown(f"""
+            <div style="background: {colors.get('background', '#FAF9F6')}; padding: 15px; border-radius: 8px; border-left: 5px solid {sev_color}; margin-bottom: 10px; border-top: 1px solid #E5E7EB; border-right: 1px solid #E5E7EB; border-bottom: 1px solid #E5E7EB;">
+                <div style="display: flex; justify-content: space-between;">
+                    <h4 style="margin: 0; color: #1F2937;">{r.get('risk', 'Unknown Risk')}</h4>
+                    <span style="background: {sev_color}; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.8rem; font-weight: bold;">{r.get('severity', 'UNKNOWN')}</span>
                 </div>
-                <p style="color: #4B5563; font-size: 0.95rem; margin-bottom: 0.5rem;"><strong>Reason:</strong> {risk.get('risk')}</p>
-                <p style="color: #4B5563; font-size: 0.95rem; margin: 0;"><strong>Recommended Action:</strong> {risk.get('action')}</p>
+                <p style="margin: 8px 0 4px 0; color: #4B5563;"><strong>Reason:</strong> {r.get('reason', 'N/A')}</p>
+                <p style="margin: 0; color: #4B5563;"><strong>Action:</strong> {r.get('action', 'N/A')}</p>
             </div>
-            """, unsafe_allow_html=True
-        )
-
+            """, unsafe_allow_html=True)
+            
+    with tabs[0]: render_risk_cards(risk_list)
+    with tabs[1]: render_risk_cards(financial_risks)
+    with tabs[2]: render_risk_cards(inventory_risks)
+    with tabs[3]: render_risk_cards(customer_risks)
+    with tabs[4]: render_risk_cards(receivables_risks)
+    with tabs[5]: render_risk_cards(operational_risks)

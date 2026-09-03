@@ -19,20 +19,21 @@ def find_master_csv():
     return None
 
 @st.cache_data
-def load_master_data():
-    """Loads the master dataset and caches it."""
-    csv_path = find_master_csv()
-    
-    if csv_path is None:
-        raise FileNotFoundError("rural_business_master_data.csv was not found.")
-        
-    return pd.read_csv(csv_path), csv_path
+def get_cached_pipeline_result(csv_path):
+    """Loads, cleans, and runs the entire pipeline, caching the result based on the file path."""
+    df = pd.read_csv(csv_path)
+    clean_df = validate_and_clean(df)
+    result = run_pipeline(clean_df)
+    return clean_df, result
 
 def refresh_application_data():
     """Refreshes the application data and pipeline results into session state."""
-    df, csv_path = load_master_data()
-    clean_df = validate_and_clean(df)
+    csv_path = find_master_csv()
+    if csv_path is None:
+        raise FileNotFoundError("rural_business_master_data.csv was not found.")
+        
+    clean_df, result = get_cached_pipeline_result(csv_path)
     
-    st.session_state["pipeline_result"] = run_pipeline(clean_df)
+    st.session_state["pipeline_result"] = result
     st.session_state["raw_data"] = clean_df
     st.session_state["dataset_path"] = str(csv_path)

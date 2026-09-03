@@ -11,6 +11,10 @@ def apply_theme():
             }
             * {
                 font-family: 'Inter', sans-serif;
+            }
+            
+            /* Apply dark text to typography and labels */
+            .stApp, .stMarkdown, p, h1, h2, h3, h4, h5, h6, span, label, li {
                 color: #111827;
             }
             

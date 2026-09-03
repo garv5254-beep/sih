@@ -90,31 +90,41 @@ with col_debug:
 
 st.markdown("<br><hr style='border: none; border-top: 1px solid #E5E7EB;'><br>", unsafe_allow_html=True)
 
+@st.cache_data
+def get_sales_trend(data):
+    sales_df = data[data['Record_Type'].str.lower() == 'sale']
+    if 'Date' in sales_df.columns:
+        sales_df = sales_df.copy()
+        sales_df['Date'] = pd.to_datetime(sales_df['Date'], errors='coerce')
+        if 'Total_Amount' in sales_df.columns:
+            return sales_df.groupby('Date')['Total_Amount'].sum().reset_index(), 'Total_Amount'
+        elif 'Amount' in sales_df.columns:
+            return sales_df.groupby('Date')['Amount'].sum().reset_index(), 'Amount'
+    return None, None
+
+@st.cache_data
+def get_exp_breakdown(data):
+    exp_df = data[data['Record_Type'].str.lower() == 'expense']
+    if 'Category' in exp_df.columns and 'Amount' in exp_df.columns:
+        return exp_df.groupby('Category')['Amount'].sum().reset_index()
+    return None
+
 if not raw_data.empty:
-    sales_df = raw_data[raw_data['Record_Type'].str.lower() == 'sale'].copy()
-    exp_df = raw_data[raw_data['Record_Type'].str.lower() == 'expense'].copy()
-    
     col1, col2 = st.columns(2)
     
     with col1:
         st.markdown("### Revenue Trend")
-        if 'Date' in sales_df.columns and 'Total_Amount' in sales_df.columns:
-            sales_df['Date'] = pd.to_datetime(sales_df['Date'], errors='coerce')
-            sales_trend = sales_df.groupby('Date')['Total_Amount'].sum().reset_index()
-            fig = create_line_chart(sales_trend, 'Date', 'Total_Amount', "", colors.get('terracotta', '#C65D47'))
-            st.plotly_chart(fig, use_container_width=True)
-        elif 'Date' in sales_df.columns and 'Amount' in sales_df.columns:
-            sales_df['Date'] = pd.to_datetime(sales_df['Date'], errors='coerce')
-            sales_trend = sales_df.groupby('Date')['Amount'].sum().reset_index()
-            fig = create_line_chart(sales_trend, 'Date', 'Amount', "", colors.get('terracotta', '#C65D47'))
+        sales_trend, val_col = get_sales_trend(raw_data)
+        if sales_trend is not None:
+            fig = create_line_chart(sales_trend, 'Date', val_col, "", colors.get('terracotta', '#C65D47'))
             st.plotly_chart(fig, use_container_width=True)
         else:
             st.info("Time-series data for Revenue not available.")
             
     with col2:
         st.markdown("### Expense Breakdown")
-        if 'Category' in exp_df.columns and 'Amount' in exp_df.columns:
-            exp_breakdown = exp_df.groupby('Category')['Amount'].sum().reset_index()
+        exp_breakdown = get_exp_breakdown(raw_data)
+        if exp_breakdown is not None:
             fig = create_donut_chart(exp_breakdown, 'Category', 'Amount', "")
             st.plotly_chart(fig, use_container_width=True)
         else:

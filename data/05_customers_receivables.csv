@@ -1,6 +1,37 @@
-Customer_ID,Customer_Name,Contact_Number,Customer_Type,Total_Credit_Sales,Total_Payments_Received,Outstanding_Amount,Last_Payment_Date,Days_Overdue
-CUST005,Demo Customer 1,9876543200,Regular,₹ 42279,₹ 40004,₹ 2275,2026-08-25,8
-CUST001,Demo Customer 2,9876543201,Regular,₹ 137314,₹ 45059,₹ 92255,2026-08-25,2
-CUST003,Demo Customer 3,9876543202,Regular,₹ 506211,₹ 488226,₹ 17985,2026-08-25,4
-CUST002,Demo Customer 4,9876543203,Regular,₹ 157022,₹ 26381,₹ 130641,2026-08-25,8
-CUST004,Demo Customer 5,9876543204,Regular,₹ 233532,₹ 233532,₹ 0,2026-08-25,0
+Customer_ID,Customer_Name,Business_Name,Contact_Number,Email,City,Customer_Type,Registration_Date,Customer_Rating,Outstanding_Amount
+CUST001,Suresh Patel,Suresh Retail Shop,9876543337,sureshretailshop@example.com,Raipur,Institutional Buyer,2025-04-17,3.8,0
+CUST002,Ramesh Singh,Ramesh Enterprises,9876541567,rameshenterprises@example.com,Bilaspur,Wholesaler,2024-09-22,4.6,0
+CUST003,Sanjay Joshi,Sanjay Plumbing Supplier,9876549048,sanjayplumbingsupplier@example.com,Raipur,Institutional Buyer,2026-04-25,4.0,0
+CUST004,Ramesh Singh,Ramesh Plumbing Supplier,9876546476,rameshplumbingsupplier@example.com,Rajnandgaon,Institutional Buyer,2025-06-10,3.6,0
+CUST005,Rajesh Kumar,Rajesh Wholesale,9876549625,rajeshwholesale@example.com,Ambikapur,Wholesaler,2024-04-20,4.3,0
+CUST006,Suresh Patel,Suresh Electricals,9876543255,sureshelectricals@example.com,Korba,Contractor,2025-10-15,3.8,0
+CUST007,Ramesh Singh,Ramesh Builders,9876542171,rameshbuilders@example.com,Bilaspur,Contractor,2024-07-10,4.6,0
+CUST008,Amit Sharma,Amit Contractors,9876543138,amitcontractors@example.com,Bhilai,Retailer,2024-12-22,4.5,0
+CUST009,Amit Sharma,Amit Builders,9876544812,amitbuilders@example.com,Ambikapur,Retailer,2025-07-02,4.3,0
+CUST010,Suresh Patel,Suresh Hardware Store,9876544690,sureshhardwarestore@example.com,Bilaspur,Retailer,2026-01-30,4.2,0
+CUST011,Suresh Patel,Suresh Wholesale,9876544687,sureshwholesale@example.com,Raipur,Wholesaler,2026-04-09,4.0,0
+CUST012,Suresh Patel,Suresh Traders,9876542516,sureshtraders@example.com,Ambikapur,Institutional Buyer,2026-04-08,4.8,0
+CUST013,Prakash Rao,Prakash Builders,9876543753,prakashbuilders@example.com,Ambikapur,Wholesaler,2024-11-06,5.0,0
+CUST014,Ramesh Singh,Ramesh Plumbing Supplier,9876543703,rameshplumbingsupplier@example.com,Durg,Wholesaler,2024-08-28,3.5,0
+CUST015,Anil Gupta,Anil Hardware Store,9876544494,anilhardwarestore@example.com,Durg,Retailer,2026-01-15,3.5,0
+CUST016,Ramesh Singh,Ramesh Plumbing Supplier,9876546516,rameshplumbingsupplier@example.com,Ambikapur,Wholesaler,2026-04-02,3.6,0
+CUST017,Amit Sharma,Amit Contractors,9876549009,amitcontractors@example.com,Korba,Contractor,2025-05-28,5.0,0
+CUST018,Prakash Rao,Prakash Traders,9876546893,prakashtraders@example.com,Jagdalpur,Builder,2024-04-14,4.8,0
+CUST019,Sanjay Joshi,Sanjay Traders,9876544758,sanjaytraders@example.com,Bhilai,Institutional Buyer,2025-11-12,4.6,0
+CUST020,Anil Gupta,Anil Wholesale,9876547847,anilwholesale@example.com,Bilaspur,Institutional Buyer,2025-08-27,3.5,0
+CUST021,Ramesh Singh,Ramesh Contractors,9876541762,rameshcontractors@example.com,Ambikapur,Retailer,2024-09-07,4.5,0
+CUST022,Prakash Rao,Prakash Enterprises,9876542535,prakashenterprises@example.com,Jagdalpur,Builder,2025-09-05,4.5,0
+CUST023,Anil Gupta,Anil Wholesale,9876542220,anilwholesale@example.com,Rajnandgaon,Retailer,2025-08-11,4.1,0
+CUST024,Amit Sharma,Amit Enterprises,9876549269,amitenterprises@example.com,Ambikapur,Builder,2024-09-15,3.9,0
+CUST025,Amit Sharma,Amit Contractors,9876545177,amitcontractors@example.com,Bilaspur,Wholesaler,2025-08-20,4.4,0
+CUST026,Ashok Desai,Ashok Enterprises,9876549817,ashokenterprises@example.com,Raipur,Wholesaler,2025-03-31,4.7,0
+CUST027,Amit Sharma,Amit Distributors,9876544057,amitdistributors@example.com,Raipur,Institutional Buyer,2025-08-31,4.7,0
+CUST028,Ramesh Singh,Ramesh Traders,9876541036,rameshtraders@example.com,Bilaspur,Contractor,2025-10-18,3.5,0
+CUST029,Rajesh Kumar,Rajesh Traders,9876546506,rajeshtraders@example.com,Rajnandgaon,Wholesaler,2024-08-23,4.3,0
+CUST030,Ramesh Singh,Ramesh Plumbing Supplier,9876548294,rameshplumbingsupplier@example.com,Raipur,Retailer,2025-11-18,4.9,0
+CUST031,Anil Gupta,Anil Traders,9876545905,aniltraders@example.com,Ambikapur,Retailer,2024-10-27,4.5,0
+CUST032,Rajesh Kumar,Rajesh Distributors,9876543858,rajeshdistributors@example.com,Korba,Contractor,2025-02-09,3.6,0
+CUST033,Suresh Patel,Suresh Enterprises,9876545923,sureshenterprises@example.com,Bhilai,Wholesaler,2025-10-21,4.9,0
+CUST034,Ramesh Singh,Ramesh Wholesale,9876541157,rameshwholesale@example.com,Bilaspur,Builder,2025-08-10,4.9,0
+CUST035,Anil Gupta,Anil Contractors,9876544468,anilcontractors@example.com,Bilaspur,Institutional Buyer,2025-04-09,3.9,0
+CUST036,Vijay Verma,Vijay Wholesale,9876545827,vijaywholesale@example.com,Bilaspur,Wholesaler,2024-07-21,5.0,0

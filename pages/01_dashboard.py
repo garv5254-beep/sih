@@ -7,10 +7,10 @@ from components.charts import create_line_chart, create_donut_chart, get_base_la
 from utils.formatting import format_currency, t
 from utils.theme import apply_theme, get_colors
 
-st.set_page_config(page_title="BizMetrics - Overview", layout="wide")
+st.set_page_config(page_title="BizMetrics - Dashboard", layout="wide")
 apply_theme()
 render_sidebar()
-render_header("Good morning 👋", "Business Overview - Understand your business performance at a glance.")
+render_header("Good morning 👋", "Business Dashboard - Understand your business performance at a glance.")
 
 if "pipeline_result" not in st.session_state:
     st.error("BizMetrics dataset could not be found.")
@@ -39,16 +39,22 @@ st.markdown("<br>", unsafe_allow_html=True)
 # Main Charts Area
 col1, col2 = st.columns([2, 1])
 
+@st.cache_data
+def get_monthly_sales(data):
+    sales = data[data['Record_Type'].str.lower() == 'sale']
+    if not sales.empty and 'Date' in sales.columns:
+        sales = sales.copy()
+        sales['Date'] = pd.to_datetime(sales['Date'], errors='coerce')
+        monthly = sales.groupby(sales['Date'].dt.to_period('M'))['Amount'].sum().reset_index()
+        monthly['Date'] = monthly['Date'].astype(str)
+        return monthly
+    return None
+
 with col1:
     st.markdown("### Revenue & Profit Trend")
-    # Generate trend from raw data if Sale/Expense dates exist, else fallback
-    # For now, let's create a clean bar/line chart grouping by Date if possible.
     try:
-        sales = raw_data[raw_data['Record_Type'].str.lower() == 'sale'].copy()
-        if not sales.empty and 'Date' in sales.columns:
-            sales['Date'] = pd.to_datetime(sales['Date'], errors='coerce')
-            monthly_sales = sales.groupby(sales['Date'].dt.to_period('M'))['Amount'].sum().reset_index()
-            monthly_sales['Date'] = monthly_sales['Date'].astype(str)
+        monthly_sales = get_monthly_sales(raw_data)
+        if monthly_sales is not None:
             fig = create_line_chart(monthly_sales, 'Date', 'Amount', '', color=colors['terracotta'])
             st.plotly_chart(fig, use_container_width=True)
         else:

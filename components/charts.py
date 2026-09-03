@@ -36,10 +36,10 @@ def create_line_chart(df, x_col, y_col, title, color=None):
     fig.update_layout(**get_base_layout())
     return fig
 
-def create_bar_chart(df, x_col, y_col, title, color=None):
+def create_bar_chart(df, x_col, y_col, title, color=None, orientation='v'):
     if not color: color = get_colors()['olive']
-    fig = px.bar(df, x=x_col, y=y_col, title=title)
-    fig.update_traces(marker_color=color, marker_line_width=0, textfont=dict(color="#111827", weight="bold"))
+    fig = px.bar(df, x=x_col, y=y_col, title=title, orientation=orientation)
+    fig.update_traces(marker_color=color, marker_line_width=0, textfont=dict(color="#111827", size=12))
     fig.update_layout(**get_base_layout())
     return fig
     
