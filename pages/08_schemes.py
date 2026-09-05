@@ -4,53 +4,18 @@ from components.sidebar import render_sidebar
 from components.header import render_header
 from utils.theme import apply_theme, get_colors
 
-# 🔧 SIDEBAR VISIBILITY FIX - Add this block
+# 🔧 MINIMAL SIDEBAR VISIBILITY FIX - Only override what's absolutely necessary
 st.markdown("""
 <style>
-    /* Target Streamlit's sidebar container */
+    /* Make sidebar visible if theme accidentally hid it */
     [data-testid="stSidebar"] {
-        /* Ensure it takes up space and is visible */
-        width: 250px !important;
-        min-width: 250px !important;
-        max-width: 250px !important;
         visibility: visible !important;
         display: block !important;
-
-        /* Fix positioning - critical! */
-        margin-left: 0 !important;
-        left: 0 !important;
-        right: auto !important;
-        transform: none !important;
-        translate: none !important;
-
-        /* Ensure it's not covered by other elements */
-        z-index: 999 !important;
-        position: fixed !important;
-        top: 0 !important;
-        bottom: 0 !important;
-
-        /* Fix background if needed */
-        background-color: var(--background-color, white) !important;
     }
 
-    /* Fix the main content area to account for sidebar */
-    [data-testid="stAppViewContainer"] > .main {
-        margin-left: 250px !important;
-        width: calc(100% - 250px) !important;
-        margin-right: 0 !important;
-    }
-
-    /* Ensure the native toggle button is visible if needed */
-    button[kind="header"] {
-        display: block !important;
-        visibility: visible !important;
-        z-index: 1000 !important;
-    }
-
-    /* Fix any collapsing animation issues */
-    [data-testid="stSidebar"] > div:first-child {
-        width: 100% !important;
-        flex-shrink: 0 !important;
+    /* Ensure sidebar has reasonable width if set to 0px */
+    [data-testid="stSidebar"] {
+        min-width: 200px !important;
     }
 </style>
 """, unsafe_allow_html=True)
