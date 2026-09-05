@@ -58,9 +58,9 @@ with col1:
         
         def highlight_quality(val):
             color = ''
-            if val == 'Good': color = f"background-color: {colors.get('olive', '#6B705C')}; color: white;"
-            elif val == 'Warning': color = f"background-color: {colors.get('terracotta', '#C65D47')}; color: white;"
-            elif val == 'Critical': color = f"background-color: {colors.get('deep_rust', '#9D4330')}; color: white;"
+            if val == 'Good': color = f"background-color: {colors.get('olive', '#78805B')}; color: white;"
+            elif val == 'Warning': color = f"background-color: {colors.get('terracotta', '#9B493C')}; color: white;"
+            elif val == 'Critical': color = f"background-color: {colors.get('deep_rust', '#78372F')}; color: white;"
             return color
 
         # Sort to put critical/warning at the top

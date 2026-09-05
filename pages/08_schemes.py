@@ -16,6 +16,14 @@ if "pipeline_result" not in st.session_state:
     st.stop()
 
 result = st.session_state["pipeline_result"]
+selected_sih_scheme = st.session_state.get("selected_sih_scheme")
+sih_financing_context = st.session_state.get("sih_financing_context", {})
+
+if selected_sih_scheme:
+    st.info(
+        f"SIH context from Hyper-Local Opportunity: **{selected_sih_scheme}** | "
+        f"Loan: {format_currency(sih_financing_context.get('loan_amount', 0))}"
+    )
 
 # -----------------------------------------------------------------
 # 1. EXTRACT BUSINESS PROFILE DATA safely

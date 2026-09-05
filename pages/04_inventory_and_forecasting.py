@@ -8,6 +8,7 @@ from components.cards import kpi_card
 from components.charts import create_line_chart, get_base_layout
 from utils.formatting import format_currency
 from utils.theme import apply_theme, get_colors
+from utils.data_loader import get_cached_inventory_analysis
 
 st.set_page_config(page_title="BizMetrics - Inventory & Forecasting", layout="wide")
 apply_theme()
@@ -21,7 +22,7 @@ if "pipeline_result" not in st.session_state:
 
 result = st.session_state["pipeline_result"]
 raw_data = st.session_state.get("raw_data", pd.DataFrame())
-inv = result.get("inventory", {})
+inv = get_cached_inventory_analysis(raw_data)
 fc = result.get("forecast", {})
 colors = get_colors()
 
@@ -119,24 +120,24 @@ if ml_recs:
     ch1, ch2 = st.columns(2)
     with ch1:
         fig1 = px.scatter(recs_df, x='current_stock', y='Sales_30_Days', size='Predicted_Daily_Demand', color='Classification', hover_name='product_name', title='Sales vs Current Stock')
-        fig1.update_layout(plot_bgcolor='rgba(0,0,0,0)', font=dict(color='#1F2937'), title_font=dict(color='#111827'))
+        fig1.update_layout(plot_bgcolor='#EDE5D0', font=dict(color='#292622'), title_font=dict(color='#292622'))
         st.plotly_chart(fig1, width="stretch")
     with ch2:
         top_10 = recs_df.sort_values('Sales_30_Days', ascending=False).head(10)
         fig2 = px.bar(top_10, x='Sales_30_Days', y='product_name', orientation='h', title='Top 10 Fast Moving Products', color='Predicted_Daily_Demand', color_continuous_scale='Reds')
-        fig2.update_layout(plot_bgcolor='rgba(0,0,0,0)', font=dict(color='#1F2937'), title_font=dict(color='#111827'), yaxis={'categoryorder':'total ascending'})
+        fig2.update_layout(plot_bgcolor='#EDE5D0', font=dict(color='#292622'), title_font=dict(color='#292622'), yaxis={'categoryorder':'total ascending'})
         st.plotly_chart(fig2, width="stretch")
 
     ch3, ch4 = st.columns(2)
     with ch3:
         fig3 = px.bar(recs_df, x='product_name', y='Predicted_Daily_Demand', title='ML Predicted Daily Demand', color='Classification')
-        fig3.update_layout(plot_bgcolor='rgba(0,0,0,0)', font=dict(color='#1F2937'), title_font=dict(color='#111827'))
+        fig3.update_layout(plot_bgcolor='#EDE5D0', font=dict(color='#292622'), title_font=dict(color='#292622'))
         st.plotly_chart(fig3, width="stretch")
     with ch4:
         fig6 = go.Figure()
-        fig6.add_trace(go.Bar(x=recs_df['product_name'], y=recs_df['Avg_Daily_Demand'], name='Historical (Last 30d)', marker_color='#94A3B8'))
-        fig6.add_trace(go.Bar(x=recs_df['product_name'], y=recs_df['Predicted_Daily_Demand'], name='ML Forecast (Next 7d)', marker_color='#C65D47'))
-        fig6.update_layout(title='Historical vs ML Forecast', barmode='group', plot_bgcolor='rgba(0,0,0,0)', font=dict(color='#1F2937'), title_font=dict(color='#111827'))
+        fig6.add_trace(go.Bar(x=recs_df['product_name'], y=recs_df['Avg_Daily_Demand'], name='Historical (Last 30d)', marker_color='#78805B'))
+        fig6.add_trace(go.Bar(x=recs_df['product_name'], y=recs_df['Predicted_Daily_Demand'], name='ML Forecast (Next 7d)', marker_color='#9B493C'))
+        fig6.update_layout(title='Historical vs ML Forecast', barmode='group', plot_bgcolor='#EDE5D0', font=dict(color='#292622'), title_font=dict(color='#292622'))
         st.plotly_chart(fig6, width="stretch")
 
 st.markdown("<hr style='border: none; border-top: 1px solid #E5E7EB;'>", unsafe_allow_html=True)

@@ -13,6 +13,58 @@ except ImportError:
     GENAI_AVAILABLE = False
 import streamlit as st
 
+
+SUPPORTED_LANGUAGES = {
+    "English": "en",
+    "Hindi (हिंदी)": "hi",
+    "Hinglish": "hinglish",
+    "Marathi": "mr",
+    "Bengali": "bn",
+    "Gujarati": "gu",
+    "Tamil": "ta",
+    "Telugu": "te",
+    "Kannada": "kn",
+    "Malayalam": "ml",
+    "Punjabi": "pa",
+    "Odia": "or",
+    "Assamese": "as",
+}
+
+REGIONAL_LANGUAGE_READY = [
+    "Chhattisgarhi", "Marathi", "Bengali", "Gujarati", "Tamil",
+    "Telugu", "Kannada", "Odia", "Punjabi",
+]
+
+
+def normalize_language(language):
+    if language == "हिन्दी" or (language and "Hindi" in str(language)):
+        return "Hindi (हिंदी)"
+    return language if language in SUPPORTED_LANGUAGES else "English"
+
+
+def detect_language(query, selected_language="English"):
+    """Detect English, Devanagari Hindi, or Roman-script Hinglish."""
+    text = str(query or "")
+    if re.search(r"[\u0900-\u097F]", text):
+        return "Hindi (हिंदी)"
+    hinglish_words = {
+        "mera", "mere", "mujhe", "kitna", "kitni", "kaunsa", "kaunsi",
+        "kya", "hai", "hoga", "gaon", "paise", "paisa", "karu", "kam",
+        "milega", "sahi", "bik", "dukaan", "chahiye",
+    }
+    words = set(re.findall(r"[a-z]+", text.lower()))
+    if len(words & hinglish_words) >= 2:
+        return "Hindi (हिंदी)"
+    return normalize_language(selected_language)
+
+
+def _value(data, *keys, default="Not available"):
+    for key in keys:
+        value = data.get(key) if isinstance(data, dict) else None
+        if value is not None:
+            return value
+    return default
+
 # Load environment variables from .env file
 load_dotenv()
 
@@ -73,23 +125,24 @@ class IndiaMarketCalendar:
 class IntentDetector:
     """Classifies user query intent."""
     CATEGORIES = {
-        "FINANCIAL": ["profit", "margin", "revenue", "cogs", "expense", "tax", "cash", "loss", "performing"],
-        "SALES": ["sell", "sales", "sold", "discount", "product performance", "growth", "improve sales"],
-        "INVENTORY": ["stock", "reorder", "inventory", "sku", "shortage", "overstock", "dead stock", "lead time"],
+        "FINANCIAL": ["profit", "margin", "revenue", "cogs", "expense", "tax", "cash", "loss", "performing", "लाभ", "राजस्व", "खर्च"],
+        "SALES": ["sell", "sales", "sold", "discount", "product performance", "growth", "improve sales", "बिक्री"],
+        "INVENTORY": ["stock", "reorder", "inventory", "sku", "shortage", "overstock", "dead stock", "lead time", "स्टॉक", "इन्वेंटरी", "ऑर्डर"],
         "CUSTOMER": ["customer", "target", "retention", "aov", "segment", "buyer", "churn"],
-        "RECEIVABLES": ["receivable", "outstanding", "overdue", "collection", "payment", "due", "payments", "owe", "owes", "money"],
+        "RECEIVABLES": ["receivable", "outstanding", "overdue", "collection", "payment", "due", "payments", "owe", "owes", "money", "बकाया", "भुगतान", "कितना पैसा देना", "लेना है"],
         "FORECAST": ["forecast", "predict", "next month", "future demand"],
         "FESTIVAL": ["festival", "diwali", "dussehra", "holi", "season", "prepare for", "holiday"],
         "MARKETING": ["marketing", "campaign", "promote", "increase sales"],
-        "RISK": ["risk", "danger", "threat", "weakness"],
-        "LOAN": ["loan", "emi", "interest", "principal", "borrow", "debt"],
-        "SCHEME": ["scheme", "promotion", "loyalty", "offer", "campaign", "discount"],
+        "RISK": ["risk", "danger", "threat", "weakness", "जोखिम", "खतरा"],
+        "LOAN": ["loan", "emi", "interest", "principal", "borrow", "debt", "ऋण", "किस्त", "ब्याज", "मोरेटोरियम"],
+        "SCHEME": ["scheme", "promotion", "loyalty", "offer", "campaign", "discount", "योजना", "कौन सी योजना"],
+        "FEASIBILITY": ["should i start", "start this business", "business start", "profitable", "शुरू करना", "व्यवसाय शुरू", "व्यवहार्य", "सही रहेगा"],
         "DATA_QUALITY": ["data quality", "invalid", "missing", "duplicate", "score", "bad data", "dataset"]
     }
 
     @classmethod
     def detect(cls, query: str):
-        query = query.lower()
+        query = str(query or "").lower()
         matched = []
         for intent, keywords in cls.CATEGORIES.items():
             for kw in keywords:
@@ -114,20 +167,25 @@ class BizMetricsContextBuilder:
             
         business = pipeline_result.get("business", {})
         context["business_profile"] = {
-            "name": business.get("Shop_Name"),
-            "sector": business.get("sector"),
-            "size": business.get("Business_Size")
+            "name": _value(business, "Shop_Name", "business_name"),
+            "sector": _value(business, "sector"),
+            "state": _value(business, "state"),
+            "district": _value(business, "district"),
+            "village": _value(business, "village", "city"),
+            "size": _value(business, "Business_Size", "business_size")
         }
 
         if "FINANCIAL" in intents or "GENERAL" in intents or "RISK" in intents:
-            fin = pipeline_result.get("financial", {})
+            fin = pipeline_result.get("financials", pipeline_result.get("financial", {}))
             context["financials"] = {
-                "revenue": fin.get("total_revenue", 0),
-                "gross_profit": fin.get("gross_profit", 0),
-                "operating_profit": fin.get("operating_profit", 0),
-                "net_profit": fin.get("net_profit", 0),
-                "profit_margin": fin.get("profit_margin", 0),
-                "total_expenses": fin.get("total_expenses", 0)
+                "revenue": _value(fin, "total_revenue"),
+                "cogs": _value(fin, "cogs"),
+                "gross_profit": _value(fin, "gross_profit"),
+                "operating_profit": _value(fin, "operating_profit"),
+                "net_profit": _value(fin, "net_profit"),
+                "profit_margin": _value(fin, "profit_margin"),
+                "total_expenses": _value(fin, "total_expenses"),
+                "break_even": _value(fin, "break_even", default="Not available")
             }
             
         if "INVENTORY" in intents or "FESTIVAL" in intents or "GENERAL" in intents or "RISK" in intents:
@@ -179,6 +237,14 @@ class BizMetricsContextBuilder:
                 "monthly_emi": loans.get("monthly_emi", 0),
                 "monthly_interest": loans.get("monthly_interest", 0)
             }
+
+        sih = st.session_state.get("sih_financing_context", {})
+        if sih:
+            context["sih_financing"] = dict(sih)
+            context["sih_financing"]["selected_scheme"] = st.session_state.get("selected_sih_scheme", "Not available")
+        hyperlocal = st.session_state.get("hyperlocal_intelligence")
+        if hyperlocal:
+            context["hyperlocal_intelligence"] = hyperlocal
             
         if "SCHEME" in intents or "GENERAL" in intents or "FESTIVAL" in intents:
             schemes = pipeline_result.get("schemes", {})
@@ -197,13 +263,56 @@ class BizMetricsContextBuilder:
                 "recommendations": dq.get("recommendations", [])
             }
 
+        if "FEASIBILITY" in intents or "HYPERLOCAL" in intents or "GENERAL" in intents:
+            context["feasibility"] = pipeline_result.get("feasibility", {})
+
         return context
 
 class DeterministicFallback:
     """Rule-based engine when LLM fails or is unavailable."""
+
+    TITLES_HI = {
+        "Low Margin Warning": "कम लाभ मार्जिन चेतावनी",
+        "Inventory Risk": "स्टॉक जोखिम",
+        "Festive Preparation": "त्योहार की तैयारी",
+        "Cashflow Risk": "नकदी प्रवाह जोखिम",
+        "Receivables Status": "बकाया भुगतान स्थिति",
+        "Customer Retention": "ग्राहक बनाए रखने की सलाह",
+        "Customer Target": "महत्वपूर्ण ग्राहक",
+        "High Business Risk": "व्यवसाय का अधिक जोखिम",
+        "Loan Status": "ऋण की स्थिति",
+        "Promotions Available": "उपलब्ध योजना",
+        "Data Quality Warning": "डेटा गुणवत्ता चेतावनी",
+    }
+
+    @classmethod
+    def _localize(cls, recommendations, language, style):
+        if normalize_language(language) != "Hindi (हिंदी)":
+            if style in ("Simple", "Rural-Friendly"):
+                for rec in recommendations:
+                    rec["action"] = rec["action"].replace("operating expenses", "business costs")
+            return recommendations
+        for rec in recommendations:
+            original = rec["title"]
+            rec["title"] = cls.TITLES_HI.get(original, original)
+            rec["finding"] = {
+                "Low Margin Warning": "आपका Net Profit Margin 10% से कम है।",
+                "Inventory Risk": "कुछ SKU का स्टॉक न्यूनतम सुरक्षित स्तर से कम है।",
+                "Cashflow Risk": "कुछ ग्राहकों का भुगतान अभी बाकी है।",
+                "Loan Status": "आपके ऋण की राशि और EMI की समय पर योजना बनाएं।",
+                "High Business Risk": "व्यवसाय का जोखिम अधिक है और ध्यान देने की जरूरत है।",
+            }.get(original, rec["finding"])
+            rec["action"] = {
+                "Low Margin Warning": "व्यवसाय के खर्च और छूट की समीक्षा करें।",
+                "Inventory Risk": "तेजी से बिकने वाले सामान को पहले मंगाएं।",
+                "Cashflow Risk": "बकाया ग्राहकों से भुगतान के लिए संपर्क करें।",
+                "Loan Status": "हर महीने EMI के लिए पर्याप्त नकदी रखें।",
+                "Customer Retention": "पुराने ग्राहकों से दोबारा संपर्क करें।",
+            }.get(original, rec["action"])
+        return recommendations
     
     @staticmethod
-    def generate(query, context, intents):
+    def generate(query, context, intents, language="English", style="Standard"):
         insights_list = []
         
         # Financial
@@ -307,9 +416,32 @@ class DeterministicFallback:
                     "action": "Ensure cash flow covers upcoming EMIs.",
                     "priority": "MEDIUM"
                 })
+            sih = context.get("sih_financing", {})
+            if sih:
+                insights_list.append({
+                    "category": "FINANCIAL",
+                    "title": "SIH Repayment Context",
+                    "finding": (
+                        f"Loan amount ₹{float(sih.get('loan_amount', 0)):,.0f}, "
+                        f"interest {sih.get('interest_rate', 'Not available')}%, "
+                        f"tenure {sih.get('tenure_years', 'Not available')} years, "
+                        f"moratorium {sih.get('moratorium_months', 'Not available')} months."
+                    ),
+                    "action": "Use the BizMetrics repayment schedule and confirm terms with the lender.",
+                    "priority": "MEDIUM"
+                })
                 
         # Schemes
         if "SCHEME" in intents:
+            sih = context.get("sih_financing", {})
+            if sih.get("selected_scheme") or sih.get("scheme"):
+                insights_list.append({
+                    "category": "MARKET",
+                    "title": "Selected SIH Scheme",
+                    "finding": f"BizMetrics selected {sih.get('selected_scheme', sih.get('scheme'))} for the available project context.",
+                    "action": "Verify final scheme eligibility with the lender before applying.",
+                    "priority": "MEDIUM"
+                })
             promos = context.get("schemes", {}).get("promotions", [])
             if promos:
                 insights_list.append({
@@ -333,10 +465,19 @@ class DeterministicFallback:
                 })
 
         # Formatting as JSON for consistent UI consumption
+        insights_list = DeterministicFallback._localize(insights_list, language, style)
+        titles = ", ".join(
+            " | ".join(str(item.get(field, "")) for field in ("title", "finding"))
+            for item in insights_list
+        )
         return {
             "impact": "Operational stability",
             "source": "FALLBACK",
-            "recommendations": insights_list
+            "recommendations": insights_list,
+            # Kept for compatibility with the original advisor test contract.
+            "recommendation": titles or ("No major issues detected." if normalize_language(language) == "English" else "कोई बड़ी समस्या नहीं मिली।"),
+            "language": normalize_language(language),
+            "response_style": style,
         }
 
 def get_gemini_api_key():
@@ -348,7 +489,7 @@ def get_gemini_api_key():
     except Exception:
         return None
 
-def call_llm(query, context, chat_history):
+def call_llm(query, context, chat_history, language="English", response_style="Standard"):
     """Wrapper to call Gemini API if available, else fallback."""
     api_key = get_gemini_api_key()
     if not GENAI_AVAILABLE or not api_key:
@@ -361,7 +502,10 @@ def call_llm(query, context, chat_history):
     
     system_prompt = f"""You are the BizMetrics AI Advisor, an expert India-aware business intelligence engine.
 You must analyze the provided data context to answer the user's query.
-Never make up numerical benefits, fake historical sales, or generic chatbot answers.
+Respond in {normalize_language(language)} using a {response_style} style. Hindi may include necessary English financial terms such as EMI, Revenue, Profit, Margin, and Break-even.
+The AI must NOT become the source of numerical truth. Never invent financial, loan, scheme, repayment, eligibility, profitability, risk, subsidy, interest-rate, or project-cost values.
+Use only BizMetrics values supplied in BUSINESS CONTEXT. Never independently recalculate those values. Never invent government schemes, subsidies, eligibility, or repayment schedules.
+If a value is unavailable or missing, you MUST return 'Needs Verification' rather than an invented value.
 You must return your response STRICTLY as a valid JSON object matching exactly this schema:
 {{
   "impact": "Expected business impact summary for all recommendations",
@@ -399,7 +543,7 @@ CHAT HISTORY:
         print(f"LLM Error: {e}")
         return None
 
-def generate_business_advice(user_query, pipeline_result, current_date=None, chat_history=None):
+def generate_business_advice(user_query, pipeline_result, current_date=None, chat_history=None, language="English", response_style="Standard"):
     """
     Main entry point for the AI Intelligence layer.
     """
@@ -409,16 +553,18 @@ def generate_business_advice(user_query, pipeline_result, current_date=None, cha
     if chat_history is None:
         chat_history = []
 
+    language = detect_language(user_query, language)
     intents = IntentDetector.detect(user_query)
     context = BizMetricsContextBuilder.build(pipeline_result, intents, current_date)
+    context["response_preferences"] = {"language": language, "style": response_style}
     
-    response = call_llm(user_query, context, chat_history)
+    response = call_llm(user_query, context, chat_history, language, response_style)
     
     if response:
         response['source'] = 'LLM'
     else:
         # Deterministic Fallback
-        response = DeterministicFallback.generate(user_query, context, intents)
+        response = DeterministicFallback.generate(user_query, context, intents, language, response_style)
         response['source'] = 'FALLBACK'
         
     return response

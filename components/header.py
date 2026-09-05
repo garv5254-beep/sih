@@ -7,7 +7,7 @@ def render_header(title_key, description_key):
     
     with col1:
         st.markdown(f"<h1 style='margin-bottom: 0.2rem;'>{t(title_key, lang)}</h1>", unsafe_allow_html=True)
-        st.markdown(f"<p style='color: #4B5563; font-size: 1.1rem; margin-top: 0;'>{t(description_key, lang)}</p>", unsafe_allow_html=True)
+        st.markdown(f"<p style='color: #78805B; font-size: 1.1rem; margin-top: 0;'>{t(description_key, lang)}</p>", unsafe_allow_html=True)
         
     with col2:
         st.markdown("<br>", unsafe_allow_html=True)

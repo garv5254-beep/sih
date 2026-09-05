@@ -1,6 +1,12 @@
 import pytest
 import pandas as pd
-from ai_advisor import IntentDetector, IndiaMarketCalendar, DeterministicFallback
+from ai_advisor import (
+    BizMetricsContextBuilder,
+    DeterministicFallback,
+    IndiaMarketCalendar,
+    IntentDetector,
+    detect_language,
+)
 
 def test_intent_detection():
     # Financial
@@ -60,3 +66,33 @@ def test_deterministic_fallback():
     # Customer Intent
     res = DeterministicFallback.generate("customers", context, ["CUSTOMER"])
     assert "Customer Retention" in res["recommendation"]
+
+
+def test_language_detection_and_multilingual_intents():
+    assert detect_language("What business should I start?") == "English"
+    assert detect_language("मुझे कितना ऋण मिल सकता है?") == "Hindi (हिंदी)"
+    assert detect_language("Mere paas 50 hazar margin hai, kitna loan mil sakta hai?") == "Hindi (हिंदी)"
+    assert "RECEIVABLES" in IntentDetector.detect("मुझे कितना पैसा देना है?")
+    assert "INVENTORY" in IntentDetector.detect("Mera stock kam hai")
+    assert "LOAN" in IntentDetector.detect("मुझे EMI कितनी होगी?")
+    assert "SCHEME" in IntentDetector.detect("Kaunsi scheme milegi?")
+    assert "FEASIBILITY" in IntentDetector.detect("Kya mujhe ye business start karna chahiye?")
+
+
+def test_context_builder_preserves_actual_financial_context():
+    pipeline_result = {
+        "business": {"Shop_Name": "Demo Shop", "sector": "Retail", "state": "Chhattisgarh"},
+        "financial": {"total_revenue": 100000, "net_profit": 20000, "profit_margin": 20},
+        "loans": {"monthly_emi": 7013.80, "outstanding_principal": 450000},
+    }
+    context = BizMetricsContextBuilder.build(pipeline_result, ["GENERAL"], pd.to_datetime("2026-09-05"))
+    assert context["financials"]["revenue"] == 100000
+    assert context["loans"]["outstanding_principal"] == 450000
+
+
+def test_hindi_fallback_keeps_values_and_schema():
+    context = {"financials": {"profit_margin": 8.0}}
+    response = DeterministicFallback.generate("मेरा लाभ मार्जिन कम है", context, ["FINANCIAL"], "Hindi (हिंदी)")
+    assert response["language"] == "Hindi (हिंदी)"
+    assert response["recommendations"]
+    assert "कम लाभ" in response["recommendation"]

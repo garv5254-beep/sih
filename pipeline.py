@@ -1,6 +1,5 @@
 import pandas as pd
 import numpy as np
-from inventory_ml import InventoryML, generate_inventory_recommendations
 
 def load_master_csv(csv_file):
     """
@@ -311,7 +310,7 @@ def analyze_inventory(data):
     low_stock = 0
     dead_stock_val = 0
     
-def analyze_inventory(df):
+def analyze_inventory(df, include_ml=True):
     inv = df[df['record_type'] == 'Inventory'].copy()
     sales_df = df[df['record_type'] == 'Sale'].copy()
     
@@ -329,29 +328,32 @@ def analyze_inventory(df):
     dead_stock_mask = cur_stock > max_stock
     dead_stock_val = (cur_stock[dead_stock_mask] * price[dead_stock_mask]).sum()
     
-    # Run ML Engine
-    try:
-        # Pre-process sales df quantities
-        if not sales_df.empty:
-            sales_df['quantity'] = pd.to_numeric(sales_df['quantity'], errors='coerce').fillna(0)
-        
-        ml_engine = InventoryML()
-        predictions, diagnostics = ml_engine.predict_demand(sales_df, inv)
-        recs_df = generate_inventory_recommendations(inv, sales_df, predictions, diagnostics)
-        ml_recs = recs_df.to_dict('records')
-        
-        # Calculate new KPIs based on ML classifications
-        fast_moving = len(recs_df[recs_df['Classification'] == 'FAST MOVING'])
-        slow_moving = len(recs_df[recs_df['Classification'] == 'SLOW MOVING'])
-        dead_stock = len(recs_df[recs_df['Classification'] == 'DEAD STOCK'])
-        avg_turnover = recs_df['Sales_30_Days'].sum() / len(recs_df) if len(recs_df) > 0 else 0
-        avg_days = recs_df['Days_Remaining'].replace(999, np.nan).mean()
-        
-    except Exception as e:
-        print(f"ML Engine error: {e}")
-        ml_recs = []
-        diagnostics = {}
-        fast_moving, slow_moving, dead_stock, avg_turnover, avg_days = 0, 0, 0, 0, 0
+    ml_recs = []
+    diagnostics = {}
+    fast_moving, slow_moving, dead_stock, avg_turnover, avg_days = 0, 0, 0, 0, 0
+    if include_ml:
+        try:
+            # Import the ML stack only when inventory forecasting is requested.
+            from inventory_ml import InventoryML, generate_inventory_recommendations
+
+            # Pre-process sales df quantities
+            if not sales_df.empty:
+                sales_df['quantity'] = pd.to_numeric(sales_df['quantity'], errors='coerce').fillna(0)
+
+            ml_engine = InventoryML()
+            predictions, diagnostics = ml_engine.predict_demand(sales_df, inv)
+            recs_df = generate_inventory_recommendations(inv, sales_df, predictions, diagnostics)
+            ml_recs = recs_df.to_dict('records')
+
+            # Calculate new KPIs based on ML classifications
+            fast_moving = len(recs_df[recs_df['Classification'] == 'FAST MOVING'])
+            slow_moving = len(recs_df[recs_df['Classification'] == 'SLOW MOVING'])
+            dead_stock = len(recs_df[recs_df['Classification'] == 'DEAD STOCK'])
+            avg_turnover = recs_df['Sales_30_Days'].sum() / len(recs_df) if len(recs_df) > 0 else 0
+            avg_days = recs_df['Days_Remaining'].replace(999, np.nan).mean()
+
+        except Exception as e:
+            print(f"ML Engine error: {e}")
     
     # Enhance the original items payload
     items = inv.to_dict('records')
@@ -835,7 +837,10 @@ def analyze_customers(data):
         c_id = c_row.get('customer_id', 'UNKNOWN')
         c_name = c_row.get('customer_name', 'Unknown')
         c_business = c_row.get('business_name', 'Unknown')
-        c_phone = c_row.get('contact_number', 'N/A')
+        c_phone = c_row.get('mobile_number', c_row.get('contact_number', c_row.get('phone', '')))
+        c_phone = str(c_phone).strip().replace('.0', '') if pd.notna(c_phone) else ''
+        if not (len(c_phone) == 10 and c_phone[0] in '6789' and c_phone.isdigit()):
+            c_phone = ""
         c_email = c_row.get('email', 'N/A')
         c_city = c_row.get('city', 'Unknown')
         c_type = c_row.get('customer_type', 'Unknown')
@@ -896,7 +901,7 @@ def analyze_customers(data):
             "customer_id": c_id,
             "customer_name": c_name,
             "business_name": c_business,
-            "Phone": c_phone,
+            "Mobile_Number": c_phone,
             "email": c_email,
             "city": c_city,
             "customer_type": c_type,
@@ -927,7 +932,7 @@ def analyze_customers(data):
         "customers": customers_list
     }
 
-def run_pipeline(data):
+def run_pipeline(data, include_inventory_ml=True):
     """
     Main orchestration pipeline that runs all engines in sequence.
     """
@@ -939,7 +944,7 @@ def run_pipeline(data):
     financial = calculate_financials(data)
     receivables = analyze_receivables(data)
     payables = analyze_payables(data)
-    inventory = analyze_inventory(data)
+    inventory = analyze_inventory(data, include_ml=include_inventory_ml)
     forecast = forecast_demand(data)
     customers = analyze_customers(data)
     

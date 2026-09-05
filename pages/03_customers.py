@@ -6,51 +6,9 @@ from components.cards import kpi_card
 from components.charts import create_bar_chart, create_donut_chart
 from utils.formatting import format_currency
 from utils.theme import apply_theme, get_colors
+from customer_qr_bills import render_customer_qr_and_bills
 
 st.set_page_config(page_title="BizMetrics - Customers", layout="wide")
-
-# Fix Customer CRM text visibility (Scoped CSS)
-st.markdown("""
-<style>
-    /* 1. CUSTOMER DATABASE / TABLE */
-    [data-testid="stDataFrame"] span,
-    [data-testid="stDataFrame"] div,
-    [data-testid="stDataFrame"] {
-        color: #FFFFFF !important;
-    }
-    
-    /* 2 & 3. SEARCH & FILTER INPUTS */
-    [data-testid="stTextInput"] input {
-        color: #FFFFFF !important;
-        background-color: #1F2937 !important;
-        border-color: #374151 !important;
-    }
-    [data-testid="stTextInput"] input::placeholder {
-        color: #9CA3AF !important;
-    }
-    [data-baseweb="select"] > div {
-        background-color: #1F2937 !important;
-        border-color: #374151 !important;
-    }
-    [data-baseweb="select"] span,
-    [data-baseweb="select"] div {
-        color: #FFFFFF !important;
-    }
-    
-    /* 4. DROPDOWN MENUS */
-    [data-baseweb="popover"] [data-baseweb="menu"] {
-        background-color: #1F2937 !important;
-    }
-    [data-baseweb="menu"] span,
-    [data-baseweb="menu"] li {
-        color: #FFFFFF !important;
-    }
-    [data-baseweb="menu"] li:hover,
-    [data-baseweb="menu"] li[aria-selected="true"] {
-        background-color: #374151 !important;
-    }
-</style>
-""", unsafe_allow_html=True)
 
 apply_theme()
 render_sidebar()
@@ -84,13 +42,37 @@ with c7:
     kpi_card("Repeat Customer Rate", f"{repeat_rate:.1f}%")
 with c8: kpi_card("Total Orders", f"{c.get('total_orders', 0)}")
 
-st.markdown("<br><hr style='border: none; border-top: 1px solid #E5E7EB;'><br>", unsafe_allow_html=True)
+st.divider()
 
 if not customers_list:
     st.info("No customer records found.")
     st.stop()
 
 df_cust = pd.DataFrame(customers_list)
+
+def normalize_mobile(value):
+    if pd.isna(value):
+        return ""
+    mobile = str(value).strip()
+    if mobile.endswith(".0"):
+        mobile = mobile[:-2]
+    mobile = "".join(character for character in mobile if character.isdigit())
+    return mobile if len(mobile) == 10 and mobile[0] in "6789" else ""
+
+
+mobile_source = next((column for column in ("Mobile_Number", "Phone", "contact_number", "Mobile") if column in df_cust.columns), None)
+df_cust["Mobile_Number"] = df_cust[mobile_source].apply(normalize_mobile) if mobile_source else ""
+df_cust["Mobile Number"] = df_cust["Mobile_Number"].replace("", "Not Available")
+
+# Customer data normalization
+for col in ['customer_type', 'Customer', 'customer_name', 'business_name', 'Segment', 'status']:
+    if col in df_cust.columns:
+        df_cust[col] = (
+            df_cust[col]
+            .fillna('Unknown')
+            .astype(str)
+            .str.strip()
+        )
 
 col_charts1, col_charts2 = st.columns(2)
 
@@ -109,12 +91,12 @@ with col_charts2:
     if not top_custs.empty and top_custs['Total_Spent'].sum() > 0:
         # Use reversed order for horizontal bar chart so largest is at the top
         top_custs = top_custs.iloc[::-1]
-        fig2 = create_bar_chart(top_custs, 'Total_Spent', 'business_name', "", colors.get('primary', '#C65D47'), orientation='h')
+        fig2 = create_bar_chart(top_custs, 'Total_Spent', 'business_name', "", colors.get('primary', '#9B493C'), orientation='h')
         st.plotly_chart(fig2, width="stretch")
     else:
         st.info("No spending data available.")
 
-st.markdown("<br><hr style='border: none; border-top: 1px solid #E5E7EB;'><br>", unsafe_allow_html=True)
+st.divider()
 
 st.markdown("### CRM Database")
 
@@ -123,15 +105,17 @@ f_col1, f_col2, f_col3 = st.columns(3)
 with f_col1:
     search_term = st.text_input("Search Customer/Business Name", "")
 with f_col2:
-    status_filter = st.selectbox("status", ["All"] + sorted(list(df_cust['status'].unique())))
+    status_filter = st.selectbox("status", ["All"] + sorted(df_cust['status'].unique().tolist()))
 with f_col3:
-    type_filter = st.selectbox("Type", ["All"] + sorted(list(df_cust['customer_type'].unique())))
+    type_filter = st.selectbox("Type", ["All"] + sorted(df_cust['customer_type'].unique().tolist()))
 
 filtered_df = df_cust.copy()
 if search_term:
     filtered_df = filtered_df[
-        filtered_df['customer_name'].str.contains(search_term, case=False, na=False) |
-        filtered_df['business_name'].str.contains(search_term, case=False, na=False)
+        filtered_df['customer_name'].astype(str).str.contains(search_term, case=False, na=False) |
+        filtered_df['business_name'].astype(str).str.contains(search_term, case=False, na=False) |
+        filtered_df['customer_id'].astype(str).str.contains(search_term, case=False, na=False) |
+        filtered_df['Mobile_Number'].astype(str).str.contains(normalize_mobile(search_term) or search_term.strip(), case=False, na=False)
     ]
 if status_filter != "All":
     filtered_df = filtered_df[filtered_df['status'] == status_filter]
@@ -139,53 +123,44 @@ if type_filter != "All":
     filtered_df = filtered_df[filtered_df['customer_type'] == type_filter]
 
 # Display columns
-display_cols = ['customer_id', 'business_name', 'city', 'status', 'Segment', 'Total_Orders', 'Total_Spent', 'AOV', 'Last_Purchase_Date', 'customer_rating']
+display_cols = ['business_name', 'customer_id', 'Mobile Number', 'customer_type', 'Total_Spent', 'Total_Orders', 'AOV', 'Last_Purchase_Date']
 formatted_df = filtered_df[display_cols].copy()
+formatted_df.columns = ['Customer', 'Customer ID', 'Mobile Number', 'Type', 'Total Spent', 'Orders', 'AOV', 'Last Purchase']
 
 # Formatting for table display
-formatted_df['Total_Spent'] = formatted_df['Total_Spent'].apply(lambda x: format_currency(x))
+formatted_df['Total Spent'] = formatted_df['Total Spent'].apply(lambda x: format_currency(x))
 formatted_df['AOV'] = formatted_df['AOV'].apply(lambda x: format_currency(x))
-formatted_df['customer_rating'] = formatted_df['customer_rating'].apply(lambda x: f"{x:.1f} ★" if x > 0 else "N/A")
 
 # Streamlit-compatible styling for the table (light text on dark background)
-styled_df = formatted_df.style.set_properties(**{
-    'background-color': '#1F2937',
-    'color': '#F9FAFB',
-    'border-color': '#374151'
-})
+st.dataframe(formatted_df, width="stretch", hide_index=True)
 
-st.dataframe(styled_df, width="stretch", hide_index=True)
-
-st.markdown("<br><hr style='border: none; border-top: 1px solid #E5E7EB;'><br>", unsafe_allow_html=True)
+st.divider()
 
 st.markdown("### Customer Profile Details")
 if not filtered_df.empty:
-    selected_customer_name = st.selectbox("Select a customer to view details:", filtered_df['business_name'].tolist())
+    selected_customer_id = st.selectbox("Select a customer to view details:", filtered_df['customer_id'].tolist())
     
-    if selected_customer_name:
-        prof = filtered_df[filtered_df['business_name'] == selected_customer_name].iloc[0]
+    if selected_customer_id:
+        prof = filtered_df[filtered_df['customer_id'] == selected_customer_id].iloc[0]
         
-        st.subheader(prof['business_name'])
-        st.caption(f"{prof['city']} • {prof['status']} • {prof['customer_type']}")
-        
-        st.markdown("<br>", unsafe_allow_html=True)
-        st.markdown("#### Purchase History")
-        
-        if not raw_data.empty:
-            sales_raw = raw_data[raw_data['record_type'] == 'Sale']
-            cust_sales = sales_raw[sales_raw['customer_id'] == prof['customer_id']].copy()
+        c1, c2, c3 = st.columns([2, 1, 1])
+        with c1:
+            st.subheader(f"🏢 {prof.get('business_name', 'Unknown')}")
+            st.caption(f"**Customer ID:** {prof.get('customer_id', 'N/A')} | **Name:** {prof.get('customer_name', 'N/A')}")
+            st.markdown(f"**Mobile Number:** {prof.get('Mobile Number', 'Not Available')} | **Type:** {prof.get('customer_type', 'N/A')} | **Status:** {prof.get('status', 'N/A')}")
+            st.markdown(f"**Total Spent:** {format_currency(prof.get('Total_Spent', 0))} | **Total Orders:** {prof.get('Total_Orders', 0)} | **Average Order Value:** {format_currency(prof.get('AOV', 0))}")
+            st.markdown(f"**Last Purchase:** {prof.get('Last_Purchase_Date', 'N/A')} | **Most Purchased Product:** {prof.get('Most_Purchased_Product', 'N/A')}")
             
-            if not cust_sales.empty:
-                hist_cols = ['date', 'product_id', 'quantity', 'selling_price', 'discount_percent', 'total_amount']
-                available_cols = [col for col in hist_cols if col in cust_sales.columns]
-                # Streamlit-compatible styling for the table
-                styled_hist = cust_sales[available_cols].sort_values('date', ascending=False).style.set_properties(**{
-                    'background-color': '#1F2937',
-                    'color': '#F9FAFB',
-                    'border-color': '#374151'
-                })
-                st.dataframe(styled_hist, width="stretch", hide_index=True)
-            else:
-                st.info("No transaction records found for this customer.")
+            # Use get to avoid KeyErrors if not in dataframe
+            email = prof.get('email', 'N/A')
+            st.markdown(f"**Email:** {email}")
+        with c2:
+            st.metric("Rating", f"{prof.get('customer_rating', 0):.1f} ★")
+        with c3:
+            st.metric("Total Spent", format_currency(prof.get('Total_Spent', 0)))
+
+        st.divider()
+        
+        render_customer_qr_and_bills(str(prof.get('customer_id', '')))
 else:
     st.info("No customers match the given filters.")

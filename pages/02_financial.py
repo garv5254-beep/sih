@@ -39,7 +39,7 @@ col_stmt, col_debug = st.columns([1, 1])
 with col_stmt:
     st.markdown("### Income Statement")
     st.markdown(f"""
-    <div style='background: {colors.get('background', '#FAF9F6')}; padding: 20px; border-radius: 8px; border: 1px solid #E5E7EB;'>
+    <div style='background: {colors.get('background', '#EDE5D0')}; padding: 20px; border-radius: 12px; border: 1px solid rgba(41,38,34,.12);'>
         <div style='display:flex; justify-content:space-between; margin-bottom:8px;'><span>Revenue</span> <span>{format_currency(f.get('total_revenue', 0))}</span></div>
         <div style='display:flex; justify-content:space-between; margin-bottom:8px;'><span>- Cost of Goods Sold</span> <span>{format_currency(f.get('cogs', 0))}</span></div>
         <hr style='margin: 8px 0; border: none; border-top: 1px solid #D1D5DB;'>
@@ -116,7 +116,7 @@ if not raw_data.empty:
         st.markdown("### Revenue Trend")
         sales_trend, val_col = get_sales_trend(raw_data)
         if sales_trend is not None:
-            fig = create_line_chart(sales_trend, 'date', val_col, "", colors.get('terracotta', '#C65D47'))
+            fig = create_line_chart(sales_trend, 'date', val_col, "", colors.get('terracotta', '#9B493C'))
             st.plotly_chart(fig, width="stretch")
         else:
             st.info("Time-series data for Revenue not available.")

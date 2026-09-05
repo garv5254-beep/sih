@@ -4,6 +4,9 @@ import sys
 import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from pipeline import analyze_customers
+from customer_qr_bills import _get_customer_profile, _whatsapp_phone, _whatsapp_url, get_customer_qr
+from io import BytesIO
+from PIL import Image
 
 def test_customer_metrics():
     # Setup mock dataframe matching the required columns
@@ -69,3 +72,33 @@ def test_unmatched_sales():
     assert res['customers'][0]['Total_Orders'] == 0
     assert res['customers'][0]['Total_Spent'] == 0
     assert res['total_revenue'] == 0
+
+
+def test_customer_mobile_and_whatsapp_helpers():
+    assert _whatsapp_phone("987-654-3210") == "919876543210"
+    assert _whatsapp_phone("+919876543210") == "919876543210"
+    assert _whatsapp_phone("12345") == ""
+
+    url = _whatsapp_url("Demo Customer", "9876543210")
+    assert url.startswith("https://wa.me/919876543210?text=")
+    assert "Demo%20Customer" in url
+    assert "Garv%20Electronics%20%26%20Hardware" in url
+    assert _whatsapp_url("Demo Customer", "nan") == ""
+
+
+def test_customer_qr_is_valid_png():
+    qr_bytes = get_customer_qr("CUST001")
+    image = Image.open(BytesIO(qr_bytes))
+    image.load()
+    assert image.format == "PNG"
+
+
+def test_customer_profile_lookup_prefers_customer_record(monkeypatch):
+    import customer_qr_bills
+
+    customer_qr_bills.st.session_state["raw_data"] = pd.DataFrame([
+        {"record_type": "Sale", "customer_id": "CUST001", "mobile_number": pd.NA},
+        {"record_type": "Receivable", "customer_id": "CUST001", "mobile_number": "9876543210"},
+    ])
+    profile = _get_customer_profile("CUST001")
+    assert profile["mobile_number"] == "9876543210"

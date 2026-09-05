@@ -12,6 +12,61 @@ apply_theme()
 render_sidebar()
 render_header("Receivables", "Track and manage outstanding payments.")
 
+st.markdown(
+    """
+    <style>
+        /* Receivables information/dialogue styling */
+        [data-testid="stAlert"] {
+            background: #68705A !important;
+            border: 1px solid #68705A !important;
+            border-radius: 12px !important;
+            color: #FFFFFF !important;
+        }
+
+        [data-testid="stAlert"] p,
+        [data-testid="stAlert"] span,
+        [data-testid="stAlert"] div,
+        [data-testid="stAlert"] strong,
+        [data-testid="stAlert"] svg {
+            color: #FFFFFF !important;
+            fill: #FFFFFF !important;
+            stroke: #FFFFFF !important;
+        }
+
+        /* Receivables tables, controls, and section text */
+        [data-testid="stDataFrame"] {
+            border: 1px solid #68705A !important;
+            border-radius: 10px !important;
+            background: #F4EBDD !important;
+        }
+
+        [data-testid="stSelectbox"] label,
+        [data-testid="stTextInput"] label,
+        [data-testid="stMultiSelect"] label,
+        [data-testid="stSelectbox"] div,
+        [data-testid="stTextInput"] div,
+        [data-testid="stMultiSelect"] div {
+            color: #263238 !important;
+        }
+
+        [data-testid="stSelectbox"] input,
+        [data-testid="stTextInput"] input,
+        [data-testid="stMultiSelect"] input {
+            color: #263238 !important;
+            background: #F4EBDD !important;
+        }
+
+        [data-testid="stButton"] button,
+        [data-testid="stDownloadButton"] button {
+            color: #FFFFFF !important;
+            fill: #FFFFFF !important;
+            stroke: #FFFFFF !important;
+        }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
 if "pipeline_result" not in st.session_state:
     st.error("BizMetrics dataset could not be found.")
     st.info("Developer Note:\nPlace rural_business_master_data.csv in the project root or data/ directory.")
@@ -54,14 +109,34 @@ def color_status(val):
         return ""
     status = str(val).strip().lower()
     if status == "overdue":
-        return "color: #9D4330; font-weight: 700;"
+        return "color: #9B493C; font-weight: 700;"
     elif status == "due soon":
-        return "color: #C65D47; font-weight: 700;"
+        return "color: #9B493C; font-weight: 700;"
     elif status in ("paid", "settled", "cleared"):
-        return "color: #6B705C; font-weight: 700;"
+        return "color: #78805B; font-weight: 700;"
     elif status == "pending":
         return "color: #555555; font-weight: 700;"
     return ""
+
+
+def readable_receivables_table_styles():
+    return [
+        {
+            "selector": "th",
+            "props": [
+                ("background-color", "#68705A"),
+                ("color", "#FFFFFF"),
+                ("font-weight", "700"),
+            ],
+        },
+        {
+            "selector": "td",
+            "props": [
+                ("background-color", "#F4EBDD"),
+                ("color", "#263238"),
+            ],
+        },
+    ]
 
 if not rec_df.empty:
     # Build clean invoice table
@@ -126,7 +201,8 @@ if not rec_df.empty:
     cust_group = cust_group.sort_values(by='Outstanding', ascending=False)
     
     st.dataframe(
-        cust_group.style.map(color_status, subset=['status'])
+        cust_group.style.set_table_styles(readable_receivables_table_styles())
+                        .map(color_status, subset=['status'])
                         .format({
                             'Total_Invoiced': '₹ {:,.2f}',
                             'Total_Paid': '₹ {:,.2f}',
@@ -146,7 +222,8 @@ if not rec_df.empty:
     
     st.dataframe(
         inv_df[existing_cols].sort_values(by=['Outstanding', 'Days Overdue'], ascending=[False, False])
-        .style.map(color_status, subset=['status'])
+        .style.set_table_styles(readable_receivables_table_styles())
+              .map(color_status, subset=['status'])
               .format({
                   'Invoice Amount': '₹ {:,.2f}',
                   'Amount Paid': '₹ {:,.2f}',

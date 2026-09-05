@@ -4,7 +4,7 @@ def kpi_card(title, value, context=None):
     """
     Renders a premium EstatePro looking KPI card.
     """
-    context_html = f"<div style='margin-top: 0.5rem; font-size: 0.8rem; color: #4B5563;'>{context}</div>" if context else ""
+    context_html = f"<div style='margin-top: 0.5rem; font-size: 0.8rem; color: #78805B;'>{context}</div>" if context else ""
     
     st.markdown(
         f"""
